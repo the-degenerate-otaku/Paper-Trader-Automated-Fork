@@ -13,17 +13,20 @@ The React/MUI portfolio and positions components are connected to the NSE backen
 Python 3.11+ and Node.js 22+ are supported targets. Linux CI verifies tests and the production build; local interactive browser smoke was performed on Windows.
 
 ```sh
-python -m venv .venv
+python -m pip install uv
+uv sync --locked --extra dev
 ```
 
 Activate with `.venv/Scripts/Activate.ps1` on Windows or `source .venv/bin/activate` on Linux, then:
 
 ```sh
-python -m pip install -e ".[dev]"
 paper-trader init --offline
 paper-trader demo --start 2026-09-01T09:15:00+05:30 --sessions 3 --strategy ema
 python -m pytest
 ```
+
+The committed `uv.lock` is the tested dependency set used by CI. After pulling updates,
+rerun `uv sync --locked --extra dev` to install security fixes into an existing environment.
 
 Build and open the dashboard:
 

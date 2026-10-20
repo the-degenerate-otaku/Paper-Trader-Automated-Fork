@@ -1,5 +1,26 @@
 # Security and smoke verification
 
+## Locked-dependency remediation — 2026-10-20
+
+Regenerated the stale lockfile and aligned the Windows tested snapshot. Starlette now
+resolves to 1.9.0, with an explicit minimum of 1.3.1; the other advisory-affected
+packages were upgraded. CI and the documented setup now install the committed lock
+and audit that environment. Existing installations must rerun
+`uv sync --locked --extra dev` to receive the fixes.
+
+The HTTP boundary rejects backslashes and NULs before filesystem resolution and
+bounds aggregate Range-header bytes using validated configuration. Five regression
+cases cover UNC/device paths, traversal, NULs, duplicate Range headers and valid
+partial-content responses. Safe probes confirmed zero UNC resolver calls and prompt
+431 responses to oversized Range inputs.
+
+Windows verification: 128 tests passed; all 13 live loopback security smoke checks
+passed; Ruff, format checks, strict mypy and Bandit passed. The patched environment's
+pip-audit reported no known vulnerabilities. Privacy scanning found no blocking
+matches across 3,104 file versions before this record was added. The test client
+emits an upstream httpx deprecation warning. Linux execution is left to the updated
+CI job; local results do not certify remote CI success.
+
 ## Milestone 9 — research and final boundaries
 
 Research uses immutable source versions, realized outcomes available at the declared clock, chronological splits and a purged training boundary. Temperature fitting requires an explicit checkpoint revision and enough held-out outcomes. Baseline runs do not produce fabricated model labels or calibration curves. Training exports contain objective labels and sanitized provenance, without local paths or account identifiers. Candidate temperatures are not applied automatically.

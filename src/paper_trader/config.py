@@ -277,6 +277,7 @@ class SimulationConfig(Section):
 class ServerConfig(Section):
     port: int = Field(default=2080, ge=1024, le=65535)
     max_request_bytes: int = Field(default=65536, gt=0)
+    max_range_header_bytes: int = Field(default=4096, gt=0, le=65536)
     websocket_interval_seconds: float = Field(default=1, gt=0)
     replay_interval_seconds: float = Field(default=0.1, gt=0)
     development_origins: list[str] = Field(default_factory=list)
