@@ -1,0 +1,11 @@
+# Bot arena and scheduler
+
+Create a workspace replay, then open Bot arena and create an arena from that dataset. Each configured bot gets its own run, account, bankroll, decisions and fills. Allocations cannot exceed configured total paper capital. Risk limits apply independently to each bot; the workspace run is a separate experiment. All entry gates start disabled, regardless of previously persisted settings.
+
+Modes: manual holds automated entries; copilot records judgments for review; shadow records judgments without fills; autopilot permits proposed orders through the same deterministic risk engine. Copilot/shadow do not automatically fill or approve orders. Stop entries cancels pending entry orders while the running scheduler still processes reflex stops and exits. Pausing the scheduler stops candle processing too. Changing mode with pending orders or open positions is rejected.
+
+The default scheduler processes the imported immutable dataset. Each tick advances at most one eligible closed candle per bot. Repeated ticks cannot consume a future candle or replay an already processed event. The scheduler does not start automatically when the application starts.
+
+Continuous yfinance refresh is opt-in in config.yaml. Specify live_refresh_enabled, live_symbols, live_timeframe, lookback_days and refresh_seconds, then restart and create an arena from stored market history. Synthetic demo data cannot enable continuous refresh. The updater stores immutable data versions and appends only new closed candles. Revisions to older bars require a new replay, rather than silently changing a running experiment. Stale data and refresh failures hold new entries. Unknown calendar years fail closed. Free Yahoo data remains delayed/revised and may be unavailable; this is not an exchange-grade execution feed.
+
+Tests cover isolation, allocation limits, observation clocks, duplicate/future/late append rejection, shadow no-fill behavior, pending-entry cancellation, feed failure/staleness vetoes, API controls and immediate pause. Continuous polling over a real NSE session and model CPU performance are not yet end-to-end verified. Keep the process running for paper position management. Restart leaves prior ledgers available for audit; it does not resume a bot or its in-memory execution state automatically.

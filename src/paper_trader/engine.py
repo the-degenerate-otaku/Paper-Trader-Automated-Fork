@@ -74,6 +74,7 @@ class ReplayEngine:
         contexts: dict[str, tuple[str, str]] | None = None,
         shadow: bool = False,
         account_id: str | None = None,
+        bot_id: str | None = None,
     ) -> None:
         self.settings, self.calendar, self.database = settings, calendar, database
         self.events = tuple(sorted(candles, key=lambda c: (c.closed_at, c.symbol)))
@@ -92,6 +93,7 @@ class ReplayEngine:
         self.shadow = shadow
         self.run_id = uuid4().hex
         self.account_id = account_id or self.run_id
+        self.bot_id = bot_id
         self.exchange = PaperExchange(
             settings, calendar, Portfolio(settings.account.starting_capital_inr)
         )
@@ -319,10 +321,11 @@ class ReplayEngine:
     ) -> None:
         with self.database.connect() as connection:
             connection.execute(
-                "INSERT INTO decisions VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO decisions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     decision_id,
                     self.run_id,
+                    self.bot_id,
                     candle.symbol,
                     candle.closed_at.isoformat(),
                     state.state,

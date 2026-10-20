@@ -34,6 +34,7 @@ import {
 import type { Time, UTCTimestamp } from "lightweight-charts";
 import PortfolioValue from "../components/PortfolioValue";
 import PositionsTable from "../components/PositionsTable";
+import BotPanel from "./BotPanel";
 import { useAccountContext } from "../contexts/AccountContext";
 
 type Indicator = {
@@ -351,6 +352,7 @@ export default function Terminal() {
         "Settings",
         "System health",
         "Watchlist",
+        "Bot arena",
     ];
     const run = state?.run;
     const bars = state?.candles.filter((b) => b.symbol === symbol) ?? [];
@@ -1009,6 +1011,7 @@ export default function Terminal() {
                         </Box>
                     </Paper>
                 )}
+                {tab === 9 && <BotPanel />}
                 <Typography
                     variant="caption"
                     color="text.secondary"

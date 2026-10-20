@@ -20,6 +20,7 @@ def test_paths_are_relative_to_config_not_cwd(
 
 def test_environment_overrides_yaml(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PAPER_TRADER__ACCOUNT__STARTING_CAPITAL_INR", "250000")
+    monkeypatch.setenv("PAPER_TRADER__ARENA__BOTS", "[]")
     config = load_settings(ROOT / "config.yaml")
     assert config.account.starting_capital_inr == 250000
     assert config.account.currency == "INR"
@@ -27,7 +28,9 @@ def test_environment_overrides_yaml(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_dotenv_overrides_yaml(tmp_path: Path) -> None:
     env = tmp_path / ".env"
-    env.write_text("PAPER_TRADER__ACCOUNT__STARTING_CAPITAL_INR=500000\n")
+    env.write_text(
+        "PAPER_TRADER__ACCOUNT__STARTING_CAPITAL_INR=500000\nPAPER_TRADER__ARENA__BOTS=[]\n"
+    )
     assert load_settings(ROOT / "config.yaml", env).account.starting_capital_inr == 500000
 
 

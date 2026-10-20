@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import Field
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from paper_trader.arena import BotArena, Mode
 from paper_trader.calendar import TradingCalendar
 from paper_trader.config import Section, Settings, load_settings
 from paper_trader.data import CandleStore
@@ -94,6 +95,11 @@ class RunRequest(Section):
     shadow: bool = False
 
 
+class BotControl(Section):
+    mode: Mode
+    enabled: bool
+
+
 class Terminal:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -105,6 +111,8 @@ class Terminal:
         self.task: asyncio.Task[None] | None = None
         self.lock = asyncio.Lock()
         self.source = "none"
+        self.arena: BotArena | None = None
+        self.arena_task: asyncio.Task[None] | None = None
 
     def require_engine(self) -> ReplayEngine:
         if self.engine is None:
@@ -162,7 +170,6 @@ class Terminal:
 
     async def play(self) -> None:
         engine = self.require_engine()
-        engine.playing = True
         try:
             while engine.playing and engine.cursor < len(engine.events):
                 await self.step()
@@ -281,6 +288,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if terminal.task:
             terminal.task.cancel()
             await asyncio.gather(terminal.task, return_exceptions=True)
+        if terminal.arena_task:
+            terminal.arena_task.cancel()
+            await asyncio.gather(terminal.arena_task, return_exceptions=True)
 
     app = FastAPI(title="NSE Paper Terminal", lifespan=lifespan, docs_url=None, redoc_url=None)
     app.state.terminal = terminal
@@ -366,6 +376,61 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             terminal.create(request)
         return terminal.snapshot()
 
+    @app.get("/api/arena")
+    async def arena_status() -> dict[str, object]:
+        return {
+            "running": terminal.arena.running if terminal.arena else False,
+            "bots": terminal.arena.snapshot() if terminal.arena else [],
+            "feed_error": terminal.arena.feed_error if terminal.arena else None,
+        }
+
+    @app.post("/api/arena/create")
+    async def arena_create() -> dict[str, object]:
+        if terminal.arena and (
+            terminal.arena.running
+            or any(e.exchange.portfolio.positions for e in terminal.arena.engines.values())
+        ):
+            raise HTTPException(409, "Pause arena and close positions before replacing it")
+        if terminal.settings.arena.live_refresh_enabled and terminal.source == "synthetic":
+            raise HTTPException(409, "Continuous market refresh requires stored market data")
+        if not terminal.settings.arena.bots:
+            raise HTTPException(409, "Configure bot bankrolls first")
+        engine = terminal.require_engine()
+        terminal.arena = BotArena(
+            terminal.settings,
+            terminal.calendar,
+            terminal.database,
+            engine.events,
+            engine.data_versions.copy(),
+        )
+        return await arena_status()
+
+    @app.post("/api/arena/bots/{key}")
+    async def bot_control(key: str, request: BotControl) -> dict[str, object]:
+        if not terminal.arena or key not in terminal.arena.engines:
+            raise HTTPException(404, "Unknown configured bot")
+        await terminal.arena.configure(key, request.mode, request.enabled)
+        return await arena_status()
+
+    @app.post("/api/arena/play")
+    async def arena_play() -> dict[str, str]:
+        if not terminal.arena:
+            raise HTTPException(409, "Create an arena first")
+        if terminal.arena_task and not terminal.arena_task.done():
+            raise HTTPException(409, "Scheduler already running")
+        terminal.arena.running = True
+        terminal.arena_task = asyncio.create_task(terminal.arena.run())
+        return {"status": "running"}
+
+    @app.post("/api/arena/pause")
+    async def arena_pause() -> dict[str, object]:
+        if terminal.arena:
+            terminal.arena.running = False
+        if terminal.arena_task:
+            terminal.arena_task.cancel()
+            await asyncio.gather(terminal.arena_task, return_exceptions=True)
+        return await arena_status()
+
     @app.post("/api/step")
     async def step() -> dict[str, object]:
         if terminal.task and not terminal.task.done():
@@ -378,6 +443,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         terminal.require_engine()
         if terminal.task and not terminal.task.done():
             raise HTTPException(409, "Playback already running")
+        terminal.require_engine().playing = True
         terminal.task = asyncio.create_task(terminal.play())
         return {"status": "playing"}
 

@@ -1,5 +1,15 @@
 # Security and smoke verification
 
+## Milestone 8 — scheduler and arena
+
+106 tests passed in the full suite, then added arena API start/immediate-pause smoke and reran affected config/arena/API tests. Tests cover separate accounts, allocation limits, observation clocks, no duplicate ticks, shadow no-fill behavior, pending-entry cancellation, blocked mode transitions, stale-feed and failed-feed vetoes, and rejected future/duplicate/late appends. Prior environment-precedence tests were updated to clear bot allocations when lowering total capital. Allocation validation was retained.
+
+Ruff, strict mypy and Bandit passed; frontend TypeScript/production build and ESLint on active new pages passed. pip-audit and npm audit reported no known advisories. Privacy scan checked 3,048 versions without blocking findings; inherited public baseline remains separately reported. Browser smoke created two independent INR 5,00,000 bots with entries disabled, ran both to the same 39-bar cursor and paused the scheduler with unchanged capital and zero exposure.
+
+Continuous polling is opt-in and refuses synthetic demo sources. Feed errors/staleness prevent new entries; risk/reflex execution is shared with the tested engine. Real-session continuous polling, actual Laya deployment/CPU performance and automatic restoration of in-memory execution state after restart are unverified or unsupported. Ledger records persist for audit. The app is a local paper experiment, not a production broker service.
+
+GitHub CI was replaced with read-only checks for Windows/Linux and inherited social/release/stale workflows were disabled. The browser commit uses GitHub's private noreply email. Remote checks are not counted as passed until observed.
+
 ## Milestone 7 — local API and adapted UI
 
 101 tests passed, including five API/security tests. Verified Host/origin boundaries, custom-header CSRF protection, request size limits, redacted validation errors, traversal rejection, extreme numeric values, immutable replay visibility, WebSocket snapshots, shadow-order vetoes, replay timestamps and manual order persistence/cancellation. Orders go through the same deterministic risk/exchange path. SQLite statements bind values. Open positions prevent accidentally replacing the active run.

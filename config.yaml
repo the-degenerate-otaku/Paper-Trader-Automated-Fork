@@ -1,4 +1,23 @@
 mode: paper
+arena:
+  interval_seconds: 1
+  max_bots: 8
+  live_refresh_enabled: false
+  live_symbols: []
+  live_timeframe: 5m
+  lookback_days: 5
+  refresh_seconds: 60
+  bots:
+    - id: ema-baseline
+      name: EMA baseline
+      bankroll_inr: 500000
+      strategy: ema
+      mode: manual
+    - id: local-ai
+      name: Local Laya
+      bankroll_inr: 500000
+      strategy: systemone
+      mode: shadow
 server:
   port: 2080
   max_request_bytes: 65536

@@ -286,6 +286,33 @@ class ServerConfig(Section):
         return values
 
 
+class BotSpec(Section):
+    id: str = Field(pattern=r"^[a-z0-9_-]+$", max_length=40)
+    name: str = Field(max_length=80)
+    bankroll_inr: PositiveDecimal
+    strategy: Literal["hold", "ema", "systemone"]
+    mode: Literal["manual", "copilot", "autopilot", "shadow"]
+    min_direction_prob: float | None = Field(default=None, ge=0, le=1)
+    risk_per_trade_pct: Percent | None = None
+
+
+class ArenaConfig(Section):
+    interval_seconds: float = Field(default=1, gt=0)
+    max_bots: int = Field(default=8, gt=0, le=100)
+    bots: list[BotSpec] = Field(default_factory=list)
+    live_refresh_enabled: bool = False
+    live_symbols: list[str] = Field(default_factory=list)
+    live_timeframe: Literal["1m", "5m", "15m", "1h", "1d"] = "5m"
+    lookback_days: int = Field(default=5, ge=1, le=7)
+    refresh_seconds: float = Field(default=60, gt=0)
+
+    @model_validator(mode="after")
+    def live_universe(self) -> Self:
+        if self.live_refresh_enabled and not self.live_symbols:
+            raise ValueError("Continuous refresh requires an explicit instrument universe")
+        return self
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         extra="forbid",
@@ -303,6 +330,7 @@ class Settings(BaseSettings):
     features: FeatureConfig
     simulation: SimulationConfig
     server: ServerConfig = Field(default_factory=ServerConfig)
+    arena: ArenaConfig = Field(default_factory=ArenaConfig)
     execution: ExecutionConfig
     instrument_rules: dict[str, InstrumentRule]
     charges: list[ChargesConfig] = Field(min_length=1)
@@ -310,6 +338,15 @@ class Settings(BaseSettings):
     system_one: SystemOneConfig
     benchmarks: list[str]
     risk_free_rate_pct: Percent
+
+    @model_validator(mode="after")
+    def bankrolls(self) -> Self:
+        specs = self.arena.bots
+        if len(specs) > self.arena.max_bots or len({b.id for b in specs}) != len(specs):
+            raise ValueError("Bot count or identifiers invalid")
+        if sum((b.bankroll_inr for b in specs), Decimal(0)) > self.account.starting_capital_inr:
+            raise ValueError("Bot allocations exceed total paper capital")
+        return self
 
 
 def load_settings(path: Path, env_file: Path | None = None) -> Settings:
