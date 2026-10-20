@@ -35,9 +35,11 @@ class LocalBoundary:
         app: ASGIApp,
         port: int = 2080,
         max_request_bytes: int = 65536,
+        max_range_header_bytes: int = 4096,
         development_origins: list[str] | None = None,
     ) -> None:
         self.app, self.port, self.max_request_bytes = app, port, max_request_bytes
+        self.max_range_header_bytes = max_range_header_bytes
         self.development_origins = development_origins or []
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -68,6 +70,16 @@ class LocalBoundary:
             await original_send(message)
 
         send = secured_send
+        if scope["type"] == "http":
+            if "\\" in scope.get("path", "") or "\x00" in scope.get("path", ""):
+                await JSONResponse({"detail": "Not found"}, 404)(scope, receive, send)
+                return
+            range_bytes = sum(
+                len(value) for key, value in scope.get("headers", []) if key == b"range"
+            )
+            if range_bytes > self.max_range_header_bytes:
+                await JSONResponse({"detail": "Range header too large"}, 431)(scope, receive, send)
+                return
         invalid = host not in allowed_hosts or (bool(origin) and origin not in allowed_origins)
         if scope["type"] == "websocket":
             if invalid or not origin:
@@ -345,6 +357,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         LocalBoundary,
         port=terminal.settings.server.port,
         max_request_bytes=terminal.settings.server.max_request_bytes,
+        max_range_header_bytes=terminal.settings.server.max_range_header_bytes,
         development_origins=terminal.settings.server.development_origins,
     )
 

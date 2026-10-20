@@ -20,4 +20,4 @@ Checked 2026-10-20:
 
 ## Executed smoke evidence
 
-Official catalog refresh returned 50 Nifty 50 and 14 Bank Nifty members. A real RELIANCE five-minute request returned 148 closed candles, with its stale status, two gaps and zero-volume observations preserved. Browser smoke loaded this data, toggled EMA 50, created its replay at zero visible bars and stepped to exactly one closed candle. This evidence does not verify a real-time session feed or model inference.
+Official catalog refresh returned 50 Nifty 50 and 14 Bank Nifty members. A real RELIANCE five-minute request returned 148 closed candles, with its stale status, two gaps and zero-volume observations preserved. Browser smoke loaded this data, toggled EMA 50, created its replay at zero visible bars and stepped to exactly one closed candle. A browser-selected 90-day daily request returned 61 closed candles; daily axes show dates. Session VWAP is an approximation from typical OHLC bar prices weighted by volume; a daily bar provides only a single-bar proxy, not tick-level session VWAP. This evidence does not verify a real-time session feed or model inference.

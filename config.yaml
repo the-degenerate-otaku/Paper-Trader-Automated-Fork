@@ -37,6 +37,7 @@ arena:
 server:
   port: 2080
   max_request_bytes: 65536
+  max_range_header_bytes: 4096
   websocket_interval_seconds: 1
   replay_interval_seconds: 0.1
   development_origins: [http://127.0.0.1:3000]

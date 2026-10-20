@@ -2,11 +2,32 @@
 
 ## Stock-chart workspace — 2026-10-20
 
-132 tests passed, including nine new chart API regressions. Tests cover safe symbols/timeframes, bounded history ranges, redacted provider failure, immutable cache/version selection, rejected refresh of pinned versions, warmup values, and unchanged replay state while browsing/downloading charts. Market downloads run in a worker thread behind a separate operation lock. The app accepts no user-supplied provider URLs. Existing local Host/origin/CSRF/body/WebSocket boundaries apply to the new routes. No TradingView scripts, scraping or widget price extraction were added.
+137 tests passed after merging the remote locked-dependency and static-file security fixes, including nine new chart API regressions. Tests cover safe symbols/timeframes, bounded history ranges, redacted provider failure, immutable cache/version selection, rejected refresh of pinned versions, warmup values, and unchanged replay state while browsing/downloading charts. Market downloads run in a worker thread behind a separate operation lock. The app accepts no user-supplied provider URLs. Existing local Host/origin/CSRF/body/WebSocket boundaries apply to the new routes. No TradingView scripts, scraping or widget price extraction were added.
 
 Real public-source smoke refreshed the official 50/14-member constituent lists and downloaded 148 RELIANCE five-minute closed candles. Stale data, gaps and zero-volume bars remained explicit. Browser smoke rendered the real chart, toggled EMA 50 and handed the pinned version to replay, which exposed zero bars before Step and one afterward. Indicator toggles include volume, EMA/SMA, VWAP, Bollinger, Supertrend, RSI/MACD, ATR/ADX and OBV. External TradingView links use a fixed HTTPS destination, encoded symbols and noreferrer.
 
-Ruff lint/format, strict mypy and Bandit passed. Local privacy scanning found no blocking findings across 3,106 file versions before documentation updates. The final frontend production build and ESLint checks on all active terminal pages passed; Python and npm audits found no known vulnerabilities. All 13 live local HTTP adversarial checks passed again. Public inherited baseline findings remain reported separately. These are developer-run application checks, not independent penetration-test certification or verification of live NSE pricing. TradingView's current public widget market list omits NSE; the app uses historical data with visible provenance instead of claiming a live embed.
+Ruff lint/format, strict mypy and Bandit passed. Privacy scanning of the merged history/working tree found no blocking findings across 3,130 file versions. The frontend production build and ESLint checks on all active terminal pages passed; Python and npm audits found no known vulnerabilities. All 13 live local HTTP adversarial checks passed again on the combined source. Public inherited baseline findings remain reported separately. These are developer-run application checks, not independent penetration-test certification or verification of live NSE pricing. TradingView's current public widget market list omits NSE; the app uses historical data with visible provenance instead of claiming a live embed.
+
+## Locked-dependency remediation — 2026-10-20
+
+Regenerated the stale lockfile and aligned the Windows tested snapshot. Starlette now
+resolves to 1.9.0, with an explicit minimum of 1.3.1; the other advisory-affected
+packages were upgraded. CI and the documented setup now install the committed lock
+and audit that environment. Existing installations must rerun
+`uv sync --locked --extra dev` to receive the fixes.
+
+The HTTP boundary rejects backslashes and NULs before filesystem resolution and
+bounds aggregate Range-header bytes using validated configuration. Five regression
+cases cover UNC/device paths, traversal, NULs, duplicate Range headers and valid
+partial-content responses. Safe probes confirmed zero UNC resolver calls and prompt
+431 responses to oversized Range inputs.
+
+Windows verification: 128 tests passed; all 13 live loopback security smoke checks
+passed; Ruff, format checks, strict mypy and Bandit passed. The patched environment's
+pip-audit reported no known vulnerabilities. Privacy scanning found no blocking
+matches across 3,104 file versions before this record was added. The test client
+emits an upstream httpx deprecation warning. Linux execution is left to the updated
+CI job; local results do not certify remote CI success.
 
 ## Milestone 9 — research and final boundaries
 

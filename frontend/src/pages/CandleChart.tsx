@@ -28,6 +28,7 @@ export type Fill = {
 };
 export type Bar = {
     symbol: string;
+    timeframe?: string;
     opened_at: string;
     closed_at: string;
     open: string;
@@ -98,14 +99,26 @@ export default function CandleChart({
                 horzLines: { color: "#202c3b" },
             },
             timeScale: {
-                timeVisible: true,
-                tickMarkFormatter: (value: Time) =>
-                    new Date(Number(value) * 1000).toLocaleTimeString("en-IN", {
-                        timeZone: "Asia/Kolkata",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                    }),
+                timeVisible: bars[0]?.timeframe !== "1d",
+                tickMarkFormatter: (value: Time, mark: number) =>
+                    mark <= 2 || bars[0]?.timeframe === "1d"
+                        ? new Date(Number(value) * 1000).toLocaleDateString(
+                              "en-IN",
+                              {
+                                  timeZone: "Asia/Kolkata",
+                                  day: "2-digit",
+                                  month: "short",
+                              },
+                          )
+                        : new Date(Number(value) * 1000).toLocaleTimeString(
+                              "en-IN",
+                              {
+                                  timeZone: "Asia/Kolkata",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  hour12: false,
+                              },
+                          ),
             },
             localization: {
                 timeFormatter: (value: Time) =>
