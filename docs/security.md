@@ -2,6 +2,8 @@
 
 ## Stock-chart workspace — 2026-10-20
 
+[Combined source CI run 39467868140](https://github.com/the-degenerate-otaku/Paper-Trader-Automated-Fork/actions/runs/39467868140) passed on Windows and Linux for commit bded0ca, including the locked environment, tests, source analysis, privacy/dependency gates and frontend build.
+
 137 tests passed after merging the remote locked-dependency and static-file security fixes, including nine new chart API regressions. Tests cover safe symbols/timeframes, bounded history ranges, redacted provider failure, immutable cache/version selection, rejected refresh of pinned versions, warmup values, and unchanged replay state while browsing/downloading charts. Market downloads run in a worker thread behind a separate operation lock. The app accepts no user-supplied provider URLs. Existing local Host/origin/CSRF/body/WebSocket boundaries apply to the new routes. No TradingView scripts, scraping or widget price extraction were added.
 
 Real public-source smoke refreshed the official 50/14-member constituent lists and downloaded 148 RELIANCE five-minute closed candles. Stale data, gaps and zero-volume bars remained explicit. Browser smoke rendered the real chart, toggled EMA 50 and handed the pinned version to replay, which exposed zero bars before Step and one afterward. Indicator toggles include volume, EMA/SMA, VWAP, Bollinger, Supertrend, RSI/MACD, ATR/ADX and OBV. External TradingView links use a fixed HTTPS destination, encoded symbols and noreferrer.
