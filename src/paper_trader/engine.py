@@ -334,12 +334,15 @@ class ReplayEngine:
             )
             if signal.raw:
                 connection.execute(
-                    "INSERT INTO model_outputs (decision_id, request_json, response_json) "
-                    "VALUES (?, ?, ?)",
+                    "INSERT INTO model_outputs "
+                    "(decision_id, request_json, response_json, latency_ms, error) "
+                    "VALUES (?, ?, ?, ?, ?)",
                     (
                         decision_id,
                         json.dumps(signal.raw.get("request", {})),
                         json.dumps(signal.raw.get("response", {})),
+                        signal.raw.get("latency_ms"),
+                        signal.raw.get("error"),
                     ),
                 )
             connection.execute(

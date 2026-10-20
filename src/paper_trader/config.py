@@ -197,6 +197,8 @@ class SystemOneConfig(Section):
     min_conviction: Literal["LOW", "MEDIUM", "HIGH"]
     max_reversal_risk: float = Field(ge=0, le=1)
     temperature_scalar: PositiveDecimal
+    retries: int = Field(default=1, ge=0, le=3)
+    max_response_bytes: int = Field(default=65536, gt=0)
 
     @field_validator("endpoint")
     @classmethod

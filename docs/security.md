@@ -1,5 +1,13 @@
 # Security and smoke verification
 
+## Milestone 6 — local inference client/policy
+
+Eight additional inference tests passed alongside all 88 core tests. The combined working tree, including the API under development, passed 99 tests. Ruff, strict mypy, Bandit, explicit-path pip-audit and the privacy scan passed again; no blocking findings across 3,010 file versions. The editable application itself is checked by tests/static analysis, not a published advisory record.
+
+The HTTP transport contract is pinned to inspected Laya source, with score levels starting at zero and selected-direction probability gating. Tests verify batched questions, calibrated probabilities, high reversal/CNC-short vetoes, unavailable inference, redirects, response budgets and malformed/non-finite probabilities. Requests/responses, checkpoint, latency and sanitized failures are persisted by the shared event loop. Timeout/retry budget is bounded. No inference failure enables entries; reflex execution remains independent.
+
+Smoke evidence uses mock HTTP transport, not a downloaded model. Actual checkpoint loading, CPU throughput, ONNX export and real NSE calibration remain unverified. No hosted model service or credentials are required by the client.
+
 ## Fork migration and milestone 5 — 2026-10-20
 
 Public fork of Open-Agent-Tools/open-paper-trading-mcp at 3c48168bc78e7c34b0c8247543349b02ee5aefd2, preserving its Apache-2.0 license/history. Archived upstream backend/tests/scripts are excluded from the installed package. The active runtime has no Robinhood/cloud MCP order path. No credentials, private database or runtime logs were copied.

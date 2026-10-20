@@ -4,7 +4,7 @@ Local, paper-only NSE cash-equity terminal for Windows and Linux. Public fork of
 
 ## Status
 
-Milestones 1–5: foundation, versioned data, indicators, execution/risk and shared replay/backtest engine validated. Milestones 6–9: inference, adapted dashboard/API, scheduler/bots and calibration/stress in progress. Optional milestone 10 is outside current scope.
+Milestones 1–5: foundation, versioned data, indicators, execution/risk and shared replay/backtest engine validated. Milestone 6: local inference client/policy and contract tests validated; actual model deployment is unverified. Milestones 7–9: adapted dashboard/API, scheduler/bots and calibration/stress in progress. Optional milestone 10 is outside current scope.
 
 The inherited React/MUI frontend is being connected to the NSE backend. Upstream backend/tests/scripts under upstream_reference are excluded from the installed package. Do not run the old Docker/start scripts or use upstream credential instructions during migration. No broker credentials are needed.
 
