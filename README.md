@@ -6,11 +6,11 @@ Local, paper-only NSE cash-equity terminal for Windows and Linux. Public fork of
 
 Core implementation through milestone 9 is complete: versioned NSE data, indicators, paper execution/risk, replay/backtest, local inference client/policy, FastAPI/WebSocket dashboard, isolated bot scheduler, calibration/export and walk-forward/stress tooling. Automated tests and local Windows smoke checks cover the implementation. Actual model deployment, NSE-session continuous-feed behavior and automatic execution-state restoration after restart remain unverified or unsupported. Optional milestone 10 is outside current scope.
 
-The React/MUI portfolio and positions components are connected to the NSE backend. Old backend/tests/scripts and launch/Docker files under upstream_reference are excluded from the installed package. No broker credentials are needed. CI now targets Windows and Linux; remote run results are still pending. Inherited greeting/label/release/stale automations are disabled.
+The React/MUI portfolio and positions components are connected to the NSE backend. Old backend/tests/scripts and launch/Docker files under upstream_reference are excluded from the installed package. No broker credentials are needed. [Milestone 9 CI](https://github.com/the-degenerate-otaku/Paper-Trader-Automated-Fork/actions/runs/39457905629) passed tests, static analysis, dependency/privacy checks and the production frontend build on Windows and Linux. Inherited greeting/label/release/stale automations are disabled.
 
 ## CLI setup
 
-Python 3.11+ and Node.js 22+ are supported targets. Linux execution is not independently verified yet.
+Python 3.11+ and Node.js 22+ are supported targets. Linux CI verifies tests and the production build; local interactive browser smoke was performed on Windows.
 
 ```sh
 python -m venv .venv
