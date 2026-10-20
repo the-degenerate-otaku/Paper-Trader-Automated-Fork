@@ -1,0 +1,9 @@
+# Simulator charges
+
+Verified on 2026-10-20 against [NSE circular FA73061](https://nsearchives.nseindia.com/content/circulars/FA73061.pdf) and the broker's [current cash-equity schedule](https://zerodha.com/charges/). The configured schedule applies from 2026-03-01; earlier runs fail until an appropriate historical schedule is supplied. Broker pricing is a configurable simulation profile.
+
+The NSE circular separates cash-market transaction charges of ₹306.99/crore from IPFT of ₹0.01/crore, each side, from 1 March 2026. Both are itemized. Brokerage, STT, SEBI fee, GST, stamp duty, and delivery DP charges follow the configured retail cash profile. DP is charged once per symbol/day on delivery sales; brokerage caps apply per order across partial fills.
+
+Hand calculations for ₹1,00,000 turnover: MIS buy ₹30.34, MIS sell ₹52.34, CNC buy ₹118.74, first CNC sell ₹119.08. Unit tests assert these totals and their component amounts. STT is rounded per configured quantum; all other items are rounded to paise per fill. Actual contract-note aggregation, same-day CNC netting, settlement and discounts can differ. These are transparent simulator estimates, not broker bills or tax advice.
+
+Market fills use the next eligible bar open after the signal plus configured latency. With a nonzero latency and exact adjacent bar boundaries, this can conservatively defer filling to the following bar. Limit fills require configurable trade-through. Stops win if both stop and target occur in one candle. Protective fills respect the volume cap and can remain partially unfilled at circuits, halts, or zero liquidity. Trailing stops ratchet only after checking the old stop, so the current candle's high cannot retroactively tighten its own stop. Tick size, margin and circuit bands remain instrument-configurable simulation inputs.

@@ -1,113 +1,44 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
 [project]
-name = "open-paper-trading-mcp"
+name = "paper-trader-automated"
 version = "0.1.0"
-description = "Open Paper Trading MCP - A dual-interface paper trading simulation platform"
+description = "Local, paper-only NSE trading terminal"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {text = "Apache-2.0"}
-authors = [
-    { name = "Wes Etheredge", email = "jwesleye@gmail.com" }
-]
-keywords = ["trading", "paper-trading", "mcp", "simulation", "fastapi", "finance"]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Environment :: Console",
-    "Environment :: Web Environment",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Financial and Insurance Industry",
-    "License :: OSI Approved :: Apache Software License",
-    "Natural Language :: English",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Office/Business :: Financial :: Investment",
-    "Topic :: Software Development :: Libraries :: Application Frameworks",
-    "Topic :: System :: Distributed Computing",
-    "Typing :: Typed",
-]
-
-[project.urls]
-Homepage = "https://github.com/Open-Agent-Tools/open-paper-trading-mcp"
-Repository = "https://github.com/Open-Agent-Tools/open-paper-trading-mcp"
-"Bug Tracker" = "https://github.com/Open-Agent-Tools/open-paper-trading-mcp/issues"
-Documentation = "https://github.com/Open-Agent-Tools/open-paper-trading-mcp#readme"
-
-# Minimal dependencies for MCP server functionality
 dependencies = [
-    # Core FastAPI and server dependencies
-    "fastapi",
-    "uvicorn[standard]",
-    "pydantic[email]",
-    "pydantic-settings",
-    # Essential utilities
-    "python-dotenv",
-    "httpx",
-    "aiohttp",
-    # Database (minimal)
-    "sqlalchemy",
-    "asyncpg",
-    "aiosqlite",
-    "alembic",
-    # Authentication
-    "python-jose[cryptography]",
-    "passlib[bcrypt]",
-    # Trading specific (keep minimal)
-    "robin-stocks",
-    "numpy",
-    "scipy",
-    "pytz",
-    # System utilities
-    "psutil",
-    "toml",
-    # Google API for ADK
-    "google-api-python-client",
-    "mcp==1.12.2",
-    "fastmcp==2.7.0",
-    "psycopg2-binary>=2.9.10",
-    "email-validator>=2.2.0",
+  "httpx>=0.28,<1",
+  "pydantic>=2.12,<3",
+  "pydantic-settings>=2.10,<3",
+  "PyYAML>=6,<7",
+  "tzdata>=2026.1",
+  "numpy>=2,<3",
+  "pandas>=2.2,<4",
+  "yfinance>=1.7,<2",
 ]
 
 [project.optional-dependencies]
-dev = [
-    "pytest",
-    "pytest-asyncio",
-    "pytest-cov",
-    "pytest-mock",
-    "mypy",
-    "ruff",  # Replaces black, isort, flake8
-]
+dev = ["pytest>=8,<10", "ruff>=0.14,<1", "mypy>=1.18,<2", "types-PyYAML>=6", "pandas-stubs", "bandit>=1.9,<2", "pip-audit>=2.10,<3"]
 
-[build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+[project.scripts]
+paper-trader = "paper_trader.cli:main"
 
-[tool.setuptools.packages.find]
-include = ["app*"]
-exclude = ["tests*", "reference_code*", "examples*"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/paper_trader"]
 
-[tool.mypy]
-python_version = "3.11"
-exclude = [
-    "reference_code/",
-    "examples/",
-    "scripts/load_user_profile.py",
-    "tests/unit/concurrency/",
-    "tests/integration/test_account_integration.py",
-]
-ignore_missing_imports = true
-warn_return_any = false
-warn_unused_ignores = false
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
 
 [tool.ruff]
-line-length = 88
+line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF"]
-ignore = ["E501"]
+select = ["E", "F", "I", "UP", "B"]
 
-[dependency-groups]
-dev = [
-    "types-toml>=0.10.8.20240310",
-]
+[tool.mypy]
+python_version = "3.11"
+strict = true
