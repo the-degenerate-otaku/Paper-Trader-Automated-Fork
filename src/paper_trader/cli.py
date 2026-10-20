@@ -20,6 +20,7 @@ from paper_trader.data import CandleStore, CsvProvider, YFinanceProvider, qualit
 from paper_trader.demo import synthetic
 from paper_trader.engine import EmaStrategy, HoldStrategy, ReplayEngine
 from paper_trader.features import FeatureEngine
+from paper_trader.inference import SystemOneStrategy
 from paper_trader.storage import Database
 from paper_trader.trading import ChargesCalculator
 from paper_trader.universe import UniverseService, UniverseUnavailable
@@ -33,6 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     init = commands.add_parser("init")
     init.add_argument("--offline", action="store_true")
     commands.add_parser("health")
+    commands.add_parser("serve")
     session = commands.add_parser("session")
     session.add_argument("--at", type=datetime.fromisoformat)
     universe = commands.add_parser("universe")
@@ -62,13 +64,13 @@ def main(argv: list[str] | None = None) -> int:
     demo = commands.add_parser("demo")
     demo.add_argument("--start", type=datetime.fromisoformat, required=True)
     demo.add_argument("--sessions", type=int, default=3)
-    demo.add_argument("--strategy", choices=["hold", "ema"], default="ema")
+    demo.add_argument("--strategy", choices=["hold", "ema", "systemone"], default="ema")
     backtest = commands.add_parser("backtest")
     backtest.add_argument("symbol")
     backtest.add_argument("--version", required=True)
     backtest.add_argument("--timeframe", choices=["1m", "5m", "15m", "1h", "1d"], default="5m")
     backtest.add_argument("--end", type=datetime.fromisoformat, required=True)
-    backtest.add_argument("--strategy", choices=["hold", "ema"], default="hold")
+    backtest.add_argument("--strategy", choices=["hold", "ema", "systemone"], default="hold")
     backtest.add_argument("--benchmark", action="append", default=[])
     args = parser.parse_args(argv)
     if args.command == "universe" and args.refresh and args.as_of:
@@ -104,6 +106,15 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"schema_version": version, "database": str(database.path)}))
             if args.offline or not settings.universe.include_constituents:
                 return 0
+        if args.command == "serve":
+            import uvicorn
+
+            from paper_trader.api import create_app
+
+            uvicorn.run(
+                create_app(settings), host="127.0.0.1", port=settings.server.port, access_log=False
+            )
+            return 0
         if args.command == "health":
             with database.connect() as connection:
                 result = {
@@ -117,7 +128,10 @@ def main(argv: list[str] | None = None) -> int:
                     "calendar_covered": calendar.is_covered(now.astimezone(calendar.zone).date()),
                     "calendar_verified_on": str(calendar.calendar.verified_on),
                     "session": asdict(calendar.status(now)),
-                    "inference": "not integrated until milestone 6",
+                    "inference": {
+                        "configured": settings.system_one.checkpoint,
+                        "reachable": asyncio.run(SystemOneStrategy(settings).health()),
+                    },
                 }
             print(json.dumps(result, indent=2))
             return 0
@@ -146,7 +160,13 @@ def main(argv: list[str] | None = None) -> int:
                     versions[symbol] = version_id
             if not bars:
                 raise ValueError("No closed candles in the selected dataset")
-            strategy = EmaStrategy(settings) if args.strategy == "ema" else HoldStrategy()
+            strategy = (
+                SystemOneStrategy(settings)
+                if args.strategy == "systemone"
+                else EmaStrategy(settings)
+                if args.strategy == "ema"
+                else HoldStrategy()
+            )
             replay = ReplayEngine(settings, calendar, database, bars, versions, strategy)
             report = asyncio.run(replay.run())
             print(

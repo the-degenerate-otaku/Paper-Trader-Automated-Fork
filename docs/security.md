@@ -1,5 +1,13 @@
 # Security and smoke verification
 
+## Milestone 7 — local API and adapted UI
+
+101 tests passed, including five API/security tests. Verified Host/origin boundaries, custom-header CSRF protection, request size limits, redacted validation errors, traversal rejection, extreme numeric values, immutable replay visibility, WebSocket snapshots, shadow-order vetoes, replay timestamps and manual order persistence/cancellation. Orders go through the same deterministic risk/exchange path. SQLite statements bind values. Open positions prevent accidentally replacing the active run.
+
+Ruff, strict mypy, Bandit, explicit-path pip-audit and privacy checks passed. No known Python advisories; npm dependency installation/audit reported zero advisories. Privacy scan examined 3,019 file versions with zero blocking findings. Public inherited sample/attribution findings remain separated. Windows browser smoke created a demo, stepped and played 225 bars, rendered portfolio INR values, IST clock, candles, EMA/VWAP/Bollinger and RSI/MACD panels. The inherited account-selection issue found during smoke was fixed.
+
+Service binds only 127.0.0.1. Same-origin production UI is served from the built frontend. Explicit loopback development origins can be configured; no wildcard CORS is used. WebSocket is read-only. No authentication secrets are returned by settings/health endpoints. The design trusts other native processes running as the same local user; it is not a hosted multi-user deployment. Linux execution/CI, actual model CPU latency and external live-feed end-to-end behavior remain unverified. Static upstream workflows are not evidence of current checks.
+
 ## Milestone 6 — local inference client/policy
 
 Eight additional inference tests passed alongside all 88 core tests. The combined working tree, including the API under development, passed 99 tests. Ruff, strict mypy, Bandit, explicit-path pip-audit and the privacy scan passed again; no blocking findings across 3,010 file versions. The editable application itself is checked by tests/static analysis, not a published advisory record.

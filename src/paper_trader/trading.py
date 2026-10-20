@@ -22,18 +22,24 @@ def tick_round(price: Decimal, tick: Decimal, side: Side | None = None) -> Decim
 
 
 class Order(Section):
-    id: str = Field(default_factory=lambda: uuid4().hex)
+    id: str = Field(default_factory=lambda: uuid4().hex, max_length=128)
     symbol: str = Field(pattern=r"^[A-Z0-9&_.-]+$", max_length=40)
     side: Side
     product: Product
     order_type: Literal["MARKET", "LIMIT", "SL", "SL-M", "BRACKET"] = "MARKET"
-    quantity: int = Field(gt=0)
+    quantity: int = Field(gt=0, le=1000000000)
     signal_at: datetime
-    limit_price: Decimal | None = Field(default=None, gt=0, allow_inf_nan=False)
-    trigger_price: Decimal | None = Field(default=None, gt=0, allow_inf_nan=False)
-    stop_price: Decimal | None = Field(default=None, gt=0, allow_inf_nan=False)
-    target_price: Decimal | None = Field(default=None, gt=0, allow_inf_nan=False)
-    trailing_distance: Decimal | None = Field(default=None, gt=0, allow_inf_nan=False)
+    limit_price: Decimal | None = Field(default=None, gt=0, le=Decimal("1e12"), allow_inf_nan=False)
+    trigger_price: Decimal | None = Field(
+        default=None, gt=0, le=Decimal("1e12"), allow_inf_nan=False
+    )
+    stop_price: Decimal | None = Field(default=None, gt=0, le=Decimal("1e12"), allow_inf_nan=False)
+    target_price: Decimal | None = Field(
+        default=None, gt=0, le=Decimal("1e12"), allow_inf_nan=False
+    )
+    trailing_distance: Decimal | None = Field(
+        default=None, gt=0, le=Decimal("1e12"), allow_inf_nan=False
+    )
     reduce_only: bool = False
     validity: Literal["DAY", "GTC"] = "DAY"
 
@@ -50,6 +56,8 @@ class Order(Section):
             raise ValueError("Trigger price is required")
         if not self.reduce_only and self.stop_price is None:
             raise ValueError("Every entry needs a stop")
+        if self.order_type == "BRACKET" and self.target_price is None:
+            raise ValueError("Bracket entries need a target")
         if self.product == "MIS" and self.validity != "DAY":
             raise ValueError("MIS orders have DAY validity")
         return self

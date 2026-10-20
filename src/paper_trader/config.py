@@ -267,6 +267,25 @@ class SimulationConfig(Section):
     calendar_days_per_year: float = Field(gt=0)
 
 
+class ServerConfig(Section):
+    port: int = Field(default=2080, ge=1024, le=65535)
+    max_request_bytes: int = Field(default=65536, gt=0)
+    websocket_interval_seconds: float = Field(default=1, gt=0)
+    replay_interval_seconds: float = Field(default=0.1, gt=0)
+    development_origins: list[str] = Field(default_factory=list)
+
+    @field_validator("development_origins")
+    @classmethod
+    def local_origins(cls, values: list[str]) -> list[str]:
+        for value in values:
+            parsed = urlparse(value)
+            if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
+                raise ValueError("Development origins must be loopback HTTP")
+            if parsed.path or parsed.username or parsed.password or parsed.query or parsed.fragment:
+                raise ValueError("Expected a plain origin")
+        return values
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         extra="forbid",
@@ -283,6 +302,7 @@ class Settings(BaseSettings):
     data: DataConfig
     features: FeatureConfig
     simulation: SimulationConfig
+    server: ServerConfig = Field(default_factory=ServerConfig)
     execution: ExecutionConfig
     instrument_rules: dict[str, InstrumentRule]
     charges: list[ChargesConfig] = Field(min_length=1)

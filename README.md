@@ -4,9 +4,9 @@ Local, paper-only NSE cash-equity terminal for Windows and Linux. Public fork of
 
 ## Status
 
-Milestones 1–5: foundation, versioned data, indicators, execution/risk and shared replay/backtest engine validated. Milestone 6: local inference client/policy and contract tests validated; actual model deployment is unverified. Milestones 7–9: adapted dashboard/API, scheduler/bots and calibration/stress in progress. Optional milestone 10 is outside current scope.
+Milestones 1–5: foundation, versioned data, indicators, execution/risk and replay/backtest validated. Milestone 6: local inference client/policy validated; actual model deployment remains unverified. Milestone 7: local FastAPI/WebSocket and adapted dashboard validated. Milestones 8–9: scheduler/bots and calibration/stress in progress. Optional milestone 10 is outside current scope.
 
-The inherited React/MUI frontend is being connected to the NSE backend. Upstream backend/tests/scripts under upstream_reference are excluded from the installed package. Do not run the old Docker/start scripts or use upstream credential instructions during migration. No broker credentials are needed.
+The React/MUI portfolio and positions components are connected to the NSE backend. Old backend/tests/scripts and launch/Docker files under upstream_reference are excluded from the installed package. No broker credentials are needed. Inherited upstream Actions still require migration; local checks are authoritative until that is complete.
 
 ## CLI setup
 
@@ -24,6 +24,20 @@ paper-trader init --offline
 paper-trader demo --start 2026-09-01T09:15:00+05:30 --sessions 3 --strategy ema
 python -m pytest
 ```
+
+Build and open the dashboard:
+
+```sh
+cd frontend
+npm ci
+npm run build
+cd ..
+paper-trader serve
+```
+
+Open http://127.0.0.1:2080. Click New demo, then Step or Play. Hold and EMA are explicit baselines; Local Laya requires a running local inference server. Alt+O opens the order ticket. The Reports tab can create a replay from a CLI-imported immutable data version. Development Vite serves at 127.0.0.1:3000, explicitly allowed by the local origin configuration.
+
+The UI includes INR/IST portfolio metrics, candlestick/EMA/VWAP/Bollinger/RSI/MACD charts, paper order ticket with stops/targets/trailing distance, positions/orders, decisions, trade inspection, reports, settings and service health. Watchlist membership is observation-time aware; historical snapshots are not fabricated. Missing market/reference data stays unavailable.
 
 Demo prices are synthetic. EMA is an explicit deterministic baseline separate from the AI policy. CSV/yfinance history is not an exchange-quality live feed. No live order placement is implemented.
 

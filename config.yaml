@@ -1,4 +1,10 @@
 mode: paper
+server:
+  port: 2080
+  max_request_bytes: 65536
+  websocket_interval_seconds: 1
+  replay_interval_seconds: 0.1
+  development_origins: [http://127.0.0.1:3000]
 account:
   name: Personal paper account
   starting_capital_inr: 1000000

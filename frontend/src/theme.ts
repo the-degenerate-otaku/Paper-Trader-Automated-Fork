@@ -1,81 +1,30 @@
-import { createTheme } from '@mui/material/styles';
+import { createTheme } from "@mui/material/styles";
 
-// Define the color palette based on the style guide
-const theme = createTheme({
-  palette: {
-    mode: 'light', // Switched to light mode
-    primary: {
-      main: '#1f4788', // --primary-blue
-      light: '#3f67a8',
-      dark: '#0f2748',
-    },
-    secondary: {
-      main: '#1f7a4f', // --primary-green
-      light: '#3f9a6f',
-      dark: '#0f5a2f',
-    },
-    background: {
-      default: '#f8f9fa', // --neutral-light
-      paper: '#ffffff',   // White paper for contrast
-    },
-    text: {
-      primary: '#212529',   // --neutral-darkest
-      secondary: '#495057', // --neutral-darker
-    },
-    success: {
-      main: '#006b3c',
-      light: '#d4edda',
-    },
-    warning: {
-      main: '#b45309',
-      light: '#fff3cd',
-    },
-    error: {
-      main: '#dc3545',
-      light: '#f8d7da',
-    },
-    info: {
-      main: '#0c5aa6',
-      light: '#d1ecf1',
-    },
-  },
-  typography: {
-    fontFamily: "'Roboto', sans-serif",
-    h1: { fontSize: '2.5rem', fontWeight: 300 },
-    h2: { fontSize: '1.75rem', fontWeight: 400 },
-    h3: { fontSize: '1.25rem', fontWeight: 500 },
-    body1: { fontSize: '1rem' },
-    button: { fontWeight: 500 },
-  },
-  components: {
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          backgroundColor: '#0f2748', // --primary-blue-dark
-        },
-      },
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          backgroundColor: '#ffffff', // White paper
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          backgroundColor: '#ffffff', // White card
-        },
-      },
-    },
-  },
-});
-
-// Typography constants following the style guide
 export const FONTS = {
-  primary: "'Roboto', sans-serif",
-  monospace: "'Roboto Mono', monospace",
+    primary: "Inter, system-ui, sans-serif",
+    monospace: "Consolas, monospace",
 } as const;
-
-export default theme;
+export default createTheme({
+    palette: {
+        mode: "dark",
+        primary: { main: "#77dfb5" },
+        secondary: { main: "#a5b5fb" },
+        background: { default: "#0c1118", paper: "#131c27" },
+        text: { primary: "#e3ebf3", secondary: "#8ea1b5" },
+    },
+    typography: {
+        fontFamily: FONTS.primary,
+        h4: { fontWeight: 650 },
+        button: { textTransform: "none", fontWeight: 600 },
+    },
+    shape: { borderRadius: 12 },
+    components: {
+        MuiPaper: {
+            defaultProps: { elevation: 0 },
+            styleOverrides: {
+                root: { backgroundImage: "none", border: "1px solid #253243" },
+            },
+        },
+        MuiButton: { defaultProps: { disableElevation: true } },
+    },
+});

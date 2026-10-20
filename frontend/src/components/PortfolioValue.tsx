@@ -70,11 +70,11 @@ const PortfolioValue: React.FC = () => {
 
   const formatCurrency = (amount: number | null | undefined) => {
     if (amount == null || isNaN(amount)) {
-      return '$0.00';
+      return '₹0.00';
     }
-    return amount.toLocaleString('en-US', {
+    return amount.toLocaleString('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
       minimumFractionDigits: 2,
     });
   };

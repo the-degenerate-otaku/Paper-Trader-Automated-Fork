@@ -42,7 +42,7 @@ const columns: GridColDef[] = [
     type: 'number', 
     width: 120, 
     valueFormatter: (params) => 
-      params ? `$${(params as number).toFixed(2)}` : '-'
+      params ? `₹${(params as number).toFixed(2)}` : '-'
   },
   { 
     field: 'current_price', 
@@ -50,7 +50,7 @@ const columns: GridColDef[] = [
     type: 'number', 
     width: 130, 
     valueFormatter: (params) => 
-      params ? `$${(params as number).toFixed(2)}` : '-'
+      params ? `₹${(params as number).toFixed(2)}` : '-'
   },
   { 
     field: 'market_value', 
@@ -58,7 +58,7 @@ const columns: GridColDef[] = [
     type: 'number', 
     width: 130, 
     valueFormatter: (params) => 
-      params ? `$${(params as number).toLocaleString()}` : '-'
+      params ? `₹${(params as number).toLocaleString()}` : '-'
   },
   { 
     field: 'unrealized_pnl', 
@@ -69,7 +69,7 @@ const columns: GridColDef[] = [
       if (!params) return '-';
       const value = params as number;
       const sign = value >= 0 ? '+' : '';
-      return `${sign}$${value.toFixed(2)}`;
+      return `${sign}₹${value.toFixed(2)}`;
     },
     cellClassName: (params) => {
       if (!params.value) return '';
@@ -98,7 +98,7 @@ const columns: GridColDef[] = [
     type: 'number', 
     width: 90, 
     valueFormatter: (params) => 
-      params ? `$${(params as number).toFixed(2)}` : '-'
+      params ? `₹${(params as number).toFixed(2)}` : '-'
   },
   { 
     field: 'expiration_date', 
@@ -107,7 +107,7 @@ const columns: GridColDef[] = [
     valueFormatter: (params) => {
       if (!params) return '-';
       const date = new Date(params as string);
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+      return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: '2-digit' });
     }
   },
 ];

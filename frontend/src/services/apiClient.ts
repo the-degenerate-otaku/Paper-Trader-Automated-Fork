@@ -28,9 +28,7 @@ export {
 // Types moved to types/account.ts
 
 // Use direct backend URL during development if proxy not working
-const baseURL = import.meta.env.DEV 
-  ? 'http://localhost:2080/api/v1/trading'  // Direct backend call
-  : '/api/v1/trading';  // Proxy/relative path for production
+const baseURL = '/api/v1/trading';
 
 const apiClient = axios.create({
   baseURL,
