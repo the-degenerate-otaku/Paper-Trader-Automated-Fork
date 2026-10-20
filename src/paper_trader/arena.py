@@ -65,6 +65,7 @@ class BotArena:
         for spec in settings.arena.bots:
             config = settings.model_copy(deep=True)
             config.account.starting_capital_inr = spec.bankroll_inr
+            config.simulation.strategy = spec.strategy
             config.arena.bots = []
             if spec.min_direction_prob is not None:
                 config.system_one.min_direction_prob = spec.min_direction_prob

@@ -412,6 +412,7 @@ class RiskEngine:
             reasons.append("EXPOSURE_LIMIT")
         if (
             order.stop_price is None
+            or order.stop_price <= 0
             or (order.side == "BUY" and order.stop_price >= price)
             or (order.side == "SELL" and order.stop_price <= price)
         ):
@@ -521,7 +522,20 @@ class PaperExchange:
                 if (value := getattr(order, key)) is not None
             }
         )
-        reasons = self.risk.vetoes(order, price, self.portfolio, order.signal_at, context)
+        reasons = (
+            ["INVALID_ROUNDED_PRICE"]
+            if any(
+                value is not None and value <= 0
+                for value in (
+                    order.stop_price,
+                    order.target_price,
+                    order.limit_price,
+                    order.trigger_price,
+                    order.trailing_distance,
+                )
+            )
+            else self.risk.vetoes(order, price, self.portfolio, order.signal_at, context)
+        )
         if any(
             p.status in {"OPEN", "PARTIAL"}
             and p.order.symbol == order.symbol

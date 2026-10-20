@@ -15,12 +15,14 @@ import yaml
 from pydantic import ValidationError
 
 from paper_trader.calendar import TradingCalendar
+from paper_trader.calibration import export_rows, fit, outcomes, save_artifact
 from paper_trader.config import load_settings
 from paper_trader.data import CandleStore, CsvProvider, YFinanceProvider, quality
 from paper_trader.demo import synthetic
 from paper_trader.engine import EmaStrategy, HoldStrategy, ReplayEngine
 from paper_trader.features import FeatureEngine
 from paper_trader.inference import SystemOneStrategy
+from paper_trader.research import load_dataset, stress, walk_forward
 from paper_trader.storage import Database
 from paper_trader.trading import ChargesCalculator
 from paper_trader.universe import UniverseService, UniverseUnavailable
@@ -72,6 +74,14 @@ def main(argv: list[str] | None = None) -> int:
     backtest.add_argument("--end", type=datetime.fromisoformat, required=True)
     backtest.add_argument("--strategy", choices=["hold", "ema", "systemone"], default="hold")
     backtest.add_argument("--benchmark", action="append", default=[])
+    for command in ("calibrate", "export-training", "walkforward", "stress"):
+        research = commands.add_parser(command)
+        research.add_argument("run_id")
+        research.add_argument("--as-of", type=datetime.fromisoformat, required=True)
+        if command == "export-training":
+            research.add_argument("--output", type=Path, required=True)
+        if command == "walkforward":
+            research.add_argument("--strategy", choices=["hold", "ema", "systemone"], default="ema")
     args = parser.parse_args(argv)
     if args.command == "universe" and args.refresh and args.as_of:
         parser.error("--refresh and --as-of cannot be combined")
@@ -135,7 +145,34 @@ def main(argv: list[str] | None = None) -> int:
                 }
             print(json.dumps(result, indent=2))
             return 0
+        if args.command in {"calibrate", "export-training", "walkforward", "stress"}:
+            database.migrate()
+            if args.command in {"calibrate", "export-training"}:
+                samples = outcomes(database, args.run_id, args.as_of, settings)
+                if args.command == "export-training":
+                    print(json.dumps({"rows": export_rows(samples, args.output)}))
+                else:
+                    calibration_report = fit(samples, settings.research, args.as_of)
+                    calibration_report["artifact_id"] = save_artifact(database, calibration_report)
+                    print(json.dumps(calibration_report, indent=2, allow_nan=False))
+            else:
+                recorded, bars, versions = load_dataset(database, args.run_id, args.as_of, settings)
+                research_result = asyncio.run(
+                    walk_forward(
+                        recorded,
+                        TradingCalendar.load(recorded),
+                        database,
+                        bars,
+                        versions,
+                        args.strategy,
+                    )
+                    if args.command == "walkforward"
+                    else stress(recorded, TradingCalendar.load(recorded), database, bars, versions)
+                )
+                print(json.dumps(research_result, indent=2, allow_nan=False))
+            return 0
         if args.command in {"demo", "backtest"}:
+            settings.simulation.strategy = args.strategy
             store = CandleStore(database, calendar)
             if args.command == "demo":
                 if args.sessions < 1 or args.sessions * 75 > settings.data.max_fetch_bars:

@@ -1,4 +1,20 @@
 mode: paper
+research:
+  horizon_bars: 12
+  reliability_bins: 10
+  train_fraction: 0.7
+  min_train_samples: 20
+  min_validation_samples: 10
+  temperature_grid: [0.5, 0.75, 1, 1.5, 2, 3]
+  train_bars: 150
+  test_bars: 75
+  embargo_bars: 12
+  walk_step_bars: 75
+  max_samples: 100000
+  stress_drop_every: 5
+  stress_volume_factor: 0.1
+  stress_slippage_factor: 3
+  stress_outage_after_bars: 85
 arena:
   interval_seconds: 1
   max_bots: 8
@@ -161,6 +177,7 @@ system_one:
   checkpoint: typed-decisions
   checkpoint_repo: convaiinnovations/laya
   checkpoint_subfolder: typed-decisions
+  checkpoint_revision: unverified
   timeout_ms: 300
   min_direction_prob: 0.65
   min_conviction: MEDIUM
@@ -168,5 +185,6 @@ system_one:
   temperature_scalar: 1
   retries: 1
   max_response_bytes: 65536
+  accepted_response_models: [laya-rl-agent]
 benchmarks: [NIFTY50, NIFTYBANK]
 risk_free_rate_pct: 6.5

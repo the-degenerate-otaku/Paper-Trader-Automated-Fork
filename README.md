@@ -4,7 +4,7 @@ Local, paper-only NSE cash-equity terminal for Windows and Linux. Public fork of
 
 ## Status
 
-Milestones 1–5: foundation, versioned data, indicators, execution/risk and replay/backtest validated. Milestone 6: local inference client/policy validated; actual model deployment remains unverified. Milestone 7: local FastAPI/WebSocket and adapted dashboard validated. Milestone 8: scheduler, independent bot bankrolls and shadow modes validated. Milestone 9 calibration/stress is in progress. Optional milestone 10 is outside current scope.
+Core implementation through milestone 9 is complete: versioned NSE data, indicators, paper execution/risk, replay/backtest, local inference client/policy, FastAPI/WebSocket dashboard, isolated bot scheduler, calibration/export and walk-forward/stress tooling. Automated tests and local Windows smoke checks cover the implementation. Actual model deployment, NSE-session continuous-feed behavior and automatic execution-state restoration after restart remain unverified or unsupported. Optional milestone 10 is outside current scope.
 
 The React/MUI portfolio and positions components are connected to the NSE backend. Old backend/tests/scripts and launch/Docker files under upstream_reference are excluded from the installed package. No broker credentials are needed. CI now targets Windows and Linux; remote run results are still pending. Inherited greeting/label/release/stale automations are disabled.
 
@@ -40,6 +40,8 @@ Open http://127.0.0.1:2080. Click New demo, then Step or Play. Hold and EMA are 
 The UI includes INR/IST portfolio metrics, candlestick/EMA/VWAP/Bollinger/RSI/MACD charts, paper order ticket with stops/targets/trailing distance, positions/orders, decisions, trade inspection, reports, settings and service health. Watchlist membership is observation-time aware; historical snapshots are not fabricated. Missing market/reference data stays unavailable.
 
 Bot arena provides separate configured bankrolls, manual/copilot/autopilot/shadow modes, entry gates and scheduler controls. Entry gates start disabled. Continuous market refresh is opt-in. Read [arena operation and restart limitations](docs/arena.md) before using continuous mode; persisted ledgers are not automatically resumed after restart.
+
+Calibration / research provides chronological temperature fitting, held-out reliability diagrams, notebook-compatible training JSONL, frozen-policy walk-forward windows, stress scenarios and historical ledger/charges reports. An explicit checkpoint revision and enough realized model outcomes are required for fitting. Baseline runs cannot generate a model calibration curve. See [research usage and label rules](docs/research.md) and [local inference setup](docs/inference.md).
 
 Demo prices are synthetic. EMA is an explicit deterministic baseline separate from the AI policy. CSV/yfinance history is not an exchange-quality live feed. No live order placement is implemented.
 

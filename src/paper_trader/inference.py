@@ -65,9 +65,9 @@ def distribution(answer: object, labels: set[str], temperature: float) -> dict[s
         raise ValueError("Invalid probability")
     if not math.isclose(sum(raw.values()), 1, abs_tol=0.001):
         raise ValueError("Probabilities do not sum to one")
-    logits = {key: math.log(max(float(p), 1e-12)) / temperature for key, p in raw.items()}
+    logits = {key: math.log(max(float(p), 1e-12)) for key, p in raw.items()}
     maximum = max(logits.values())
-    weights = {key: math.exp(value - maximum) for key, value in logits.items()}
+    weights = {key: math.exp((value - maximum) / temperature) for key, value in logits.items()}
     total = sum(weights.values())
     return {key: value / total for key, value in weights.items()}
 
@@ -88,6 +88,7 @@ class SystemOneStrategy:
         self.settings, self.transport = settings, transport
         self.last_latency_ms: float | None = None
         self.healthy = False
+        self.last_error: str | None = None
 
     async def health(self) -> bool:
         url = self.settings.system_one.endpoint.removesuffix("/v1/systemone") + "/health"
@@ -116,6 +117,7 @@ class SystemOneStrategy:
             "request": request,
             "checkpoint_repo": cfg.checkpoint_repo,
             "checkpoint_subfolder": cfg.checkpoint_subfolder,
+            "checkpoint_revision": cfg.checkpoint_revision,
         }
         try:
             async with asyncio.timeout(cfg.timeout_ms / 1000):
@@ -142,15 +144,25 @@ class SystemOneStrategy:
                         except (httpx.TimeoutException, httpx.NetworkError):
                             if attempt == cfg.retries:
                                 raise
-                    if not isinstance(response, dict) or response.get("model") != cfg.checkpoint:
+                    if not isinstance(response, dict) or response.get("model") not in {
+                        cfg.checkpoint,
+                        *cfg.accepted_response_models,
+                    }:
                         raise ValueError("Wrong response model")
+                    routing = response.get("routing")
+                    if routing is not None and (
+                        not isinstance(routing, dict) or routing.get("model") != cfg.checkpoint
+                    ):
+                        raise ValueError("Wrong routed checkpoint")
                     raw["response"] = response
                     result = self.policy(response, raw)
                     self.healthy = True
+                    self.last_error = None
                     return result
         except (httpx.HTTPError, TimeoutError, ValueError, KeyError, TypeError):
             self.healthy = False
             raw["error"] = "INFERENCE_UNAVAILABLE_OR_INVALID"
+            self.last_error = "INFERENCE_UNAVAILABLE_OR_INVALID"
             return Signal("HOLD", "INFERENCE_UNAVAILABLE_OR_INVALID", cfg.checkpoint, raw)
         finally:
             self.last_latency_ms = (time.perf_counter() - started) * 1000
@@ -179,7 +191,7 @@ class SystemOneStrategy:
         ):
             raise ValueError("Inconsistent direction")
         distribution(answers["regime"], {"TRENDING", "MEAN_REVERTING", "CHOPPY"}, temperature)
-        conviction = distribution(answers["entry_conviction"], {"0", "1", "2"}, temperature)
+        conviction = distribution(answers["entry_conviction"], {"0", "1", "2"}, 1)
         distribution(answers["setup_quality"], {"0", "1", "2"}, temperature)
         reversal = probability(answers["reversal_risk"].get("noul"))
         probability(answers["volatility_expansion_likely"].get("noul"))

@@ -77,7 +77,11 @@ class ReplayEngine:
         bot_id: str | None = None,
     ) -> None:
         self.settings, self.calendar, self.database = settings, calendar, database
-        self.events = tuple(sorted(candles, key=lambda c: (c.closed_at, c.symbol)))
+        self.events = tuple(
+            sorted(
+                candles, key=lambda c: (c.closed_at, c.symbol not in settings.benchmarks, c.symbol)
+            )
+        )
         if len({c.identity for c in candles}) != len(candles):
             raise ValueError("Duplicate replay candle")
         self.data_versions = data_versions
@@ -130,7 +134,9 @@ class ReplayEngine:
                     self.run_id,
                     self.settings.model_dump_json(),
                     json.dumps(self.data_versions),
-                    self.settings.system_one.checkpoint,
+                    self.settings.system_one.checkpoint
+                    if self.settings.simulation.strategy == "systemone"
+                    else f"baseline:{self.settings.simulation.strategy}",
                     self.settings.simulation.random_seed,
                     self.events[0].opened_at.isoformat() if self.events else "",
                 ),
@@ -220,7 +226,9 @@ class ReplayEngine:
         )
         self.emit("FeatureEvent", candle, {"values": state.values, "state": state.state})
         self.latest_features[candle.symbol] = state
-        if len(self.history[candle.symbol]) < self.settings.data.warmup_bars:
+        if self.contexts.get(candle.symbol, ("UNKNOWN", "UNKNOWN"))[1] == "INDEX":
+            signal = Signal("HOLD", "REFERENCE_ONLY")
+        elif len(self.history[candle.symbol]) < self.settings.data.warmup_bars:
             signal = Signal("HOLD", "WARMUP")
         elif not self.calendar.status(candle.closed_at).can_decide:
             signal = Signal("HOLD", "OUTSIDE_DECISION_WINDOW")
@@ -338,14 +346,16 @@ class ReplayEngine:
             if signal.raw:
                 connection.execute(
                     "INSERT INTO model_outputs "
-                    "(decision_id, request_json, response_json, latency_ms, error) "
-                    "VALUES (?, ?, ?, ?, ?)",
+                    "(decision_id, request_json, response_json, latency_ms, error, "
+                    "checkpoint_revision) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
                     (
                         decision_id,
                         json.dumps(signal.raw.get("request", {})),
                         json.dumps(signal.raw.get("response", {})),
                         signal.raw.get("latency_ms"),
                         signal.raw.get("error"),
+                        signal.raw.get("checkpoint_revision", "unverified"),
                     ),
                 )
             connection.execute(
@@ -484,6 +494,9 @@ class ReplayEngine:
 def metrics(
     curve: list[dict[str, object]], portfolio: Portfolio, settings: Settings
 ) -> dict[str, object]:
+    curve = list(
+        {aware(datetime.fromisoformat(str(point["at"]))): point for point in curve}.values()
+    )
     initial = float(portfolio.starting_capital)
     equity = np.array([initial, *[float(str(p["equity"])) for p in curve]])
     peaks = np.maximum.accumulate(equity)

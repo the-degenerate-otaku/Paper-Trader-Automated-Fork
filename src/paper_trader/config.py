@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from datetime import date, time
 from decimal import Decimal
 from pathlib import Path
@@ -192,6 +193,9 @@ class SystemOneConfig(Section):
     checkpoint: str
     checkpoint_repo: str
     checkpoint_subfolder: str
+    checkpoint_revision: str = Field(
+        default="unverified", pattern=r"^[A-Za-z0-9_.-]+$", max_length=128
+    )
     timeout_ms: int = Field(gt=0)
     min_direction_prob: float = Field(ge=0, le=1)
     min_conviction: Literal["LOW", "MEDIUM", "HIGH"]
@@ -199,6 +203,9 @@ class SystemOneConfig(Section):
     temperature_scalar: PositiveDecimal
     retries: int = Field(default=1, ge=0, le=3)
     max_response_bytes: int = Field(default=65536, gt=0)
+    accepted_response_models: list[str] = Field(
+        default_factory=lambda: ["laya-rl-agent"], min_length=1
+    )
 
     @field_validator("endpoint")
     @classmethod
@@ -313,6 +320,31 @@ class ArenaConfig(Section):
         return self
 
 
+class ResearchConfig(Section):
+    horizon_bars: int = Field(default=12, gt=0)
+    reliability_bins: int = Field(default=10, ge=2, le=100)
+    train_fraction: float = Field(default=0.7, gt=0, lt=1)
+    min_train_samples: int = Field(default=20, ge=2)
+    min_validation_samples: int = Field(default=10, ge=2)
+    temperature_grid: list[float] = Field(default_factory=lambda: [0.5, 0.75, 1, 1.5, 2, 3])
+    train_bars: int = Field(default=150, gt=0)
+    test_bars: int = Field(default=75, gt=0)
+    embargo_bars: int = Field(default=12, ge=0)
+    walk_step_bars: int = Field(default=75, gt=0)
+    max_samples: int = Field(default=100000, gt=0)
+    stress_drop_every: int = Field(default=5, ge=2)
+    stress_volume_factor: float = Field(default=0.1, ge=0, le=1)
+    stress_slippage_factor: PositiveDecimal = Decimal(3)
+    stress_outage_after_bars: int = Field(default=85, gt=0)
+
+    @field_validator("temperature_grid")
+    @classmethod
+    def valid_temperatures(cls, values: list[float]) -> list[float]:
+        if not values or any(not math.isfinite(value) or value <= 0 for value in values):
+            raise ValueError("Temperature grid must be finite and positive")
+        return values
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         extra="forbid",
@@ -331,6 +363,7 @@ class Settings(BaseSettings):
     simulation: SimulationConfig
     server: ServerConfig = Field(default_factory=ServerConfig)
     arena: ArenaConfig = Field(default_factory=ArenaConfig)
+    research: ResearchConfig = Field(default_factory=ResearchConfig)
     execution: ExecutionConfig
     instrument_rules: dict[str, InstrumentRule]
     charges: list[ChargesConfig] = Field(min_length=1)

@@ -6,22 +6,24 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import Field
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from paper_trader.arena import BotArena, Mode
 from paper_trader.calendar import TradingCalendar
+from paper_trader.calibration import export_rows, fit, outcomes, save_artifact
 from paper_trader.config import Section, Settings, load_settings
 from paper_trader.data import CandleStore
 from paper_trader.demo import synthetic
 from paper_trader.engine import EmaStrategy, HoldStrategy, ReplayEngine, Strategy
 from paper_trader.inference import SystemOneStrategy
+from paper_trader.research import load_dataset, stress, walk_forward
 from paper_trader.storage import Database
 from paper_trader.trading import Order
 
@@ -47,6 +49,24 @@ class LocalBoundary:
         allowed_origins = {f"http://{host}" for host in allowed_hosts}
         allowed_origins.update(self.development_origins)
         origin = headers.get(b"origin", b"").decode()
+        original_send = send
+
+        async def secured_send(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                response_headers = list(message.get("headers", []))
+                response_headers.extend(
+                    [
+                        (b"x-content-type-options", b"nosniff"),
+                        (b"x-frame-options", b"DENY"),
+                        (b"referrer-policy", b"no-referrer"),
+                    ]
+                )
+                if scope.get("path", "").startswith("/api"):
+                    response_headers.append((b"cache-control", b"no-store"))
+                message["headers"] = response_headers
+            await original_send(message)
+
+        send = secured_send
         invalid = host not in allowed_hosts or (bool(origin) and origin not in allowed_origins)
         if scope["type"] == "websocket":
             if invalid or not origin:
@@ -93,11 +113,19 @@ class RunRequest(Section):
     version: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     timeframe: Literal["1m", "5m", "15m", "1h", "1d"] = "5m"
     shadow: bool = False
+    benchmarks: dict[
+        Literal["NIFTY50", "NIFTYBANK"], Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+    ] = Field(default_factory=dict)
 
 
 class BotControl(Section):
     mode: Mode
     enabled: bool
+
+
+class ResearchRequest(Section):
+    run_id: str = Field(pattern=r"^[0-9a-f]{32}$")
+    strategy: Literal["hold", "ema", "systemone"] = "ema"
 
 
 class Terminal:
@@ -125,6 +153,8 @@ class Terminal:
         if self.engine and self.engine.exchange.portfolio.positions:
             raise HTTPException(409, "Open positions remain; finish this run before replacing it")
         store = CandleStore(self.database, self.calendar)
+        if request.source == "synthetic" and request.benchmarks:
+            raise HTTPException(422, "Synthetic demos cannot mix in market benchmark prices")
         if request.source == "synthetic":
             batch = synthetic(self.settings, request.start, request.sessions)
             with self.database.connect() as connection:
@@ -144,6 +174,10 @@ class Terminal:
             candles = store.read(version, symbol, request.timeframe, datetime.now(UTC))
         if not candles:
             raise HTTPException(422, "No closed candles in dataset")
+        versions = {symbol: version}
+        for reference, identifier in request.benchmarks.items():
+            candles += store.read(identifier, reference, request.timeframe, datetime.now(UTC))
+            versions[reference] = identifier
         strategy: Strategy = (
             SystemOneStrategy(self.settings)
             if request.strategy == "systemone"
@@ -151,12 +185,14 @@ class Terminal:
             if request.strategy == "ema"
             else HoldStrategy()
         )
+        run_config = self.settings.model_copy(deep=True)
+        run_config.simulation.strategy = request.strategy
         self.engine = ReplayEngine(
-            self.settings,
+            run_config,
             self.calendar,
             self.database,
             candles,
-            {symbol: version},
+            versions,
             strategy,
             shadow=request.shadow,
         )
@@ -225,6 +261,15 @@ class Terminal:
         return {
             "mode": "paper",
             "source": self.source,
+            "inference": {
+                "active": isinstance(engine.strategy, SystemOneStrategy),
+                "last_error": engine.strategy.last_error
+                if isinstance(engine.strategy, SystemOneStrategy)
+                else None,
+                "latency_ms": engine.strategy.last_latency_ms
+                if isinstance(engine.strategy, SystemOneStrategy)
+                else None,
+            },
             "run": {
                 "id": engine.run_id,
                 "account_id": engine.account_id,
@@ -319,7 +364,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {
             "mode": "paper",
             "database_bytes": terminal.database.path.stat().st_size,
-            "inference_ready": await strategy.health()
+            "inference_reachable": await strategy.health()
             if isinstance(strategy, SystemOneStrategy)
             else False,
             "calendar": asdict(terminal.calendar.status(datetime.now(UTC))),
@@ -335,6 +380,97 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         result = terminal.settings.model_dump(mode="json", exclude={"storage"})
         result["session"].pop("calendar_path", None)
         return result
+
+    @app.get("/api/runs")
+    async def runs() -> list[dict[str, object]]:
+        with terminal.database.connect() as connection:
+            return [
+                dict(row)
+                for row in connection.execute(
+                    "SELECT id, checkpoint_id, started_at, ended_at FROM runs "
+                    "ORDER BY rowid DESC LIMIT ?",
+                    (terminal.settings.simulation.max_log_events,),
+                ).fetchall()
+            ]
+
+    @app.get("/api/runs/{run_id}/report")
+    async def past_report(run_id: str) -> dict[str, object]:
+        with terminal.database.connect() as connection:
+            if not connection.execute("SELECT 1 FROM runs WHERE id=?", (run_id,)).fetchone():
+                raise HTTPException(404, "Unknown run")
+            metrics_rows = connection.execute(
+                "SELECT name, value FROM metrics WHERE run_id=?", (run_id,)
+            ).fetchall()
+            trades = connection.execute(
+                "SELECT details_json FROM trades WHERE account_id=?", (run_id,)
+            ).fetchall()
+            charges = connection.execute(
+                "SELECT f.charges_json FROM fills f JOIN orders o ON f.order_id=o.id "
+                "WHERE o.account_id=?",
+                (run_id,),
+            ).fetchall()
+        import json
+
+        return {
+            "run_id": run_id,
+            "metrics": {row["name"]: row["value"] for row in metrics_rows},
+            "trades": [json.loads(row[0]) for row in trades],
+            "fill_charges": [json.loads(row[0]) for row in charges],
+        }
+
+    @app.post("/api/research/{kind}", response_model=None)
+    async def research_analysis(
+        kind: Literal["calibrate", "export", "walkforward", "stress"], request: ResearchRequest
+    ) -> Response:
+        engine = terminal.engine
+        cutoff = (
+            (engine.clock or engine.events[0].opened_at)
+            if engine and engine.events
+            else datetime.now(UTC)
+        )
+        if kind in {"calibrate", "export"}:
+            samples = await asyncio.to_thread(
+                outcomes, terminal.database, request.run_id, cutoff, terminal.settings
+            )
+            if kind == "export":
+                path = terminal.database.path.parent / f"training-{request.run_id}.jsonl"
+                await asyncio.to_thread(export_rows, samples, path)
+                return FileResponse(
+                    path, media_type="application/x-ndjson", filename="nse-training.jsonl"
+                )
+            try:
+                report = await asyncio.to_thread(fit, samples, terminal.settings.research, cutoff)
+            except ValueError as exc:
+                raise HTTPException(
+                    409,
+                    "Calibration needs enough purged realized outcomes "
+                    "from one explicitly versioned checkpoint",
+                ) from exc
+            report["artifact_id"] = await asyncio.to_thread(
+                save_artifact, terminal.database, report
+            )
+            return JSONResponse(report)
+        recorded, candles, versions = await asyncio.to_thread(
+            load_dataset, terminal.database, request.run_id, cutoff, terminal.settings
+        )
+
+        def analyze() -> list[dict[str, object]]:
+            return asyncio.run(
+                walk_forward(
+                    recorded,
+                    TradingCalendar.load(recorded),
+                    terminal.database,
+                    candles,
+                    versions,
+                    request.strategy,
+                )
+                if kind == "walkforward"
+                else stress(
+                    recorded, TradingCalendar.load(recorded), terminal.database, candles, versions
+                )
+            )
+
+        return JSONResponse(await asyncio.to_thread(analyze))
 
     @app.get("/api/watchlist/{index_symbol}")
     async def watchlist(index_symbol: Literal["NIFTY50", "NIFTYBANK"]) -> dict[str, object]:

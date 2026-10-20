@@ -1,5 +1,17 @@
 # Security and smoke verification
 
+## Milestone 9 — research and final boundaries
+
+Research uses immutable source versions, realized outcomes available at the declared clock, chronological splits and a purged training boundary. Temperature fitting requires an explicit checkpoint revision and enough held-out outcomes. Baseline runs do not produce fabricated model labels or calibration curves. Training exports contain objective labels and sanitized provenance, without local paths or account identifiers. Candidate temperatures are not applied automatically.
+
+Regression checks cover native Laya response identity and routing, numerical stability at extreme temperatures, reference-only benchmark ordering, calibration leakage, outage-independent protective stops and prices that round to zero at the configured tick. Such orders are rejected before entry. Schema 4 preserves checkpoint provenance and content-addressed calibration artifacts.
+
+Windows CLI smoke completed three walk-forward folds and five stress scenarios. A real unreachable local inference endpoint produced zero entries; the separate outage regression verifies protective exits still execute. The browser completed a 225-bar EMA demo with chart indicators and zero remaining exposure. The loopback HTTP adversarial smoke passed all 13 checks, covering private-file/traversal requests, origin/Host/CSRF boundaries, request budgets and WebSocket origins.
+
+Ruff lint/format, strict mypy and Bandit passed. Python dependency audit found no known vulnerabilities, skipping only the editable application; frontend production build, active-page ESLint and npm audit passed with zero advisories. Privacy scanning examined 3,075 file versions with zero blocking findings. Inherited public attribution/examples remain separately counted; pattern scanning is not proof that every possible secret or personal datum is absent. Authentication remains outside Git.
+
+Actual model loading/CPU throughput, real-session continuous NSE polling and automatic restoration of in-memory execution state remain unverified or unsupported. No model training or live order placement was performed. Remote Windows/Linux CI results are pending publication of this milestone.
+
 ## Milestone 8 — scheduler and arena
 
 106 tests passed in the full suite, then added arena API start/immediate-pause smoke and reran affected config/arena/API tests. Tests cover separate accounts, allocation limits, observation clocks, no duplicate ticks, shadow no-fill behavior, pending-entry cancellation, blocked mode transitions, stale-feed and failed-feed vetoes, and rejected future/duplicate/late appends. Prior environment-precedence tests were updated to clear bot allocations when lowering total capital. Allocation validation was retained.

@@ -17,7 +17,9 @@ import {
 } from "@mui/material";
 import {
     Area,
-    AreaChart,
+    ComposedChart,
+    Line,
+    Legend,
     CartesianGrid,
     ResponsiveContainer,
     Tooltip,
@@ -35,6 +37,7 @@ import type { Time, UTCTimestamp } from "lightweight-charts";
 import PortfolioValue from "../components/PortfolioValue";
 import PositionsTable from "../components/PositionsTable";
 import BotPanel from "./BotPanel";
+import CalibrationPanel from "./CalibrationPanel";
 import { useAccountContext } from "../contexts/AccountContext";
 
 type Indicator = {
@@ -60,6 +63,11 @@ type Bar = {
     volume: number;
 };
 type State = {
+    inference?: {
+        active: boolean;
+        last_error: string | null;
+        latency_ms: number | null;
+    };
     indicators?: Indicator[];
     fills?: Fill[];
     mode: string;
@@ -73,7 +81,11 @@ type State = {
         shadow: boolean;
     };
     candles: Bar[];
-    curve: { at: string; equity: string }[];
+    curve: {
+        at: string;
+        equity: string;
+        benchmarks?: Record<string, string>;
+    }[];
     orders: {
         status: string;
         order: {
@@ -282,6 +294,8 @@ export default function Terminal() {
     const [limit, setLimit] = useState("");
     const [trigger, setTrigger] = useState("");
     const [dataVersion, setDataVersion] = useState("");
+    const [niftyVersion, setNiftyVersion] = useState("");
+    const [bankVersion, setBankVersion] = useState("");
     const [settingsView, setSettingsView] = useState<Record<string, unknown>>(
         {},
     );
@@ -353,6 +367,7 @@ export default function Terminal() {
         "System health",
         "Watchlist",
         "Bot arena",
+        "Calibration / research",
     ];
     const run = state?.run;
     const bars = state?.candles.filter((b) => b.symbol === symbol) ?? [];
@@ -450,6 +465,12 @@ export default function Terminal() {
                     Closed candles only. Laya must be running locally for AI
                     decisions; inference failures hold new entries.
                 </Alert>
+                {state?.inference?.last_error && (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                        Local inference failed or timed out. New entries are
+                        held; protective stops continue through the engine.
+                    </Alert>
+                )}
                 {error && (
                     <Alert
                         severity="error"
@@ -523,15 +544,54 @@ export default function Terminal() {
                                 Equity · INR
                             </Typography>
                             <ResponsiveContainer width="100%" height={280}>
-                                <AreaChart
+                                <ComposedChart
                                     data={
                                         state?.curve.map((p) => ({
                                             at: ist(p.at),
                                             equity: +p.equity,
+                                            NIFTY50:
+                                                p.benchmarks?.NIFTY50 ===
+                                                undefined
+                                                    ? undefined
+                                                    : Number(
+                                                          p.benchmarks.NIFTY50,
+                                                      ),
+                                            NIFTYBANK:
+                                                p.benchmarks?.NIFTYBANK ===
+                                                undefined
+                                                    ? undefined
+                                                    : Number(
+                                                          p.benchmarks
+                                                              .NIFTYBANK,
+                                                      ),
                                         })) ?? []
                                     }
                                 >
                                     <CartesianGrid stroke="#253243" />
+                                    <Legend />
+                                    {state?.curve.some(
+                                        (p) =>
+                                            p.benchmarks?.NIFTY50 !== undefined,
+                                    ) && (
+                                        <Line
+                                            dataKey="NIFTY50"
+                                            stroke="#a5b5fb"
+                                            dot={false}
+                                            connectNulls={false}
+                                        />
+                                    )}
+                                    {state?.curve.some(
+                                        (p) =>
+                                            p.benchmarks?.NIFTYBANK !==
+                                            undefined,
+                                    ) && (
+                                        <Line
+                                            dataKey="NIFTYBANK"
+                                            stroke="#fabf77"
+                                            dot={false}
+                                            connectNulls={false}
+                                        />
+                                    )}
                                     <XAxis dataKey="at" hide />
                                     <YAxis
                                         domain={["auto", "auto"]}
@@ -549,7 +609,7 @@ export default function Terminal() {
                                         fill="#77dfb5"
                                         fillOpacity={0.12}
                                     />
-                                </AreaChart>
+                                </ComposedChart>
                             </ResponsiveContainer>
                         </Paper>
                         <Box sx={{ gridColumn: "1 / -1" }}>
@@ -886,6 +946,14 @@ export default function Terminal() {
                                         source: "stored",
                                         symbol,
                                         version: dataVersion,
+                                        benchmarks: {
+                                            ...(niftyVersion
+                                                ? { NIFTY50: niftyVersion }
+                                                : {}),
+                                            ...(bankVersion
+                                                ? { NIFTYBANK: bankVersion }
+                                                : {}),
+                                        },
                                         strategy,
                                         shadow: shadow === "true",
                                     })
@@ -893,6 +961,28 @@ export default function Terminal() {
                             >
                                 Replay stored
                             </Button>
+                        </Stack>
+                        <Stack
+                            direction={{ xs: "column", sm: "row" }}
+                            gap={2}
+                            mb={2}
+                        >
+                            <TextField
+                                size="small"
+                                label="Nifty 50 version (optional)"
+                                value={niftyVersion}
+                                onChange={(e) =>
+                                    setNiftyVersion(e.target.value)
+                                }
+                                fullWidth
+                            />
+                            <TextField
+                                size="small"
+                                label="Bank Nifty version (optional)"
+                                value={bankVersion}
+                                onChange={(e) => setBankVersion(e.target.value)}
+                                fullWidth
+                            />
                         </Stack>
                         <Typography color="text.secondary">
                             Undefined metrics display as null. Short synthetic
@@ -1012,6 +1102,7 @@ export default function Terminal() {
                     </Paper>
                 )}
                 {tab === 9 && <BotPanel />}
+                {tab === 10 && <CalibrationPanel runId={run?.id} />}
                 <Typography
                     variant="caption"
                     color="text.secondary"
