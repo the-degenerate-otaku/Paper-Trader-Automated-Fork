@@ -1,5 +1,13 @@
 # Security and smoke verification
 
+## Stock-chart workspace — 2026-10-20
+
+132 tests passed, including nine new chart API regressions. Tests cover safe symbols/timeframes, bounded history ranges, redacted provider failure, immutable cache/version selection, rejected refresh of pinned versions, warmup values, and unchanged replay state while browsing/downloading charts. Market downloads run in a worker thread behind a separate operation lock. The app accepts no user-supplied provider URLs. Existing local Host/origin/CSRF/body/WebSocket boundaries apply to the new routes. No TradingView scripts, scraping or widget price extraction were added.
+
+Real public-source smoke refreshed the official 50/14-member constituent lists and downloaded 148 RELIANCE five-minute closed candles. Stale data, gaps and zero-volume bars remained explicit. Browser smoke rendered the real chart, toggled EMA 50 and handed the pinned version to replay, which exposed zero bars before Step and one afterward. Indicator toggles include volume, EMA/SMA, VWAP, Bollinger, Supertrend, RSI/MACD, ATR/ADX and OBV. External TradingView links use a fixed HTTPS destination, encoded symbols and noreferrer.
+
+Ruff lint/format, strict mypy and Bandit passed. Local privacy scanning found no blocking findings across 3,106 file versions before documentation updates. The final frontend production build and ESLint checks on all active terminal pages passed; Python and npm audits found no known vulnerabilities. All 13 live local HTTP adversarial checks passed again. Public inherited baseline findings remain reported separately. These are developer-run application checks, not independent penetration-test certification or verification of live NSE pricing. TradingView's current public widget market list omits NSE; the app uses historical data with visible provenance instead of claiming a live embed.
+
 ## Milestone 9 — research and final boundaries
 
 Research uses immutable source versions, realized outcomes available at the declared clock, chronological splits and a purged training boundary. Temperature fitting requires an explicit checkpoint revision and enough held-out outcomes. Baseline runs do not produce fabricated model labels or calibration curves. Training exports contain objective labels and sanitized provenance, without local paths or account identifiers. Candidate temperatures are not applied automatically.

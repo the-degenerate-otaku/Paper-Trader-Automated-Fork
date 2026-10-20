@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Alert,
     AppBar,
@@ -26,42 +26,15 @@ import {
     XAxis,
     YAxis,
 } from "recharts";
-import {
-    CandlestickSeries,
-    LineSeries,
-    ColorType,
-    createChart,
-    createSeriesMarkers,
-} from "lightweight-charts";
-import type { Time, UTCTimestamp } from "lightweight-charts";
+import CandleChart from "./CandleChart";
+import type { Bar, Indicator, Fill } from "./CandleChart";
+import MarketPanel from "./MarketPanel";
 import PortfolioValue from "../components/PortfolioValue";
 import PositionsTable from "../components/PositionsTable";
 import BotPanel from "./BotPanel";
 import CalibrationPanel from "./CalibrationPanel";
 import { useAccountContext } from "../contexts/AccountContext";
 
-type Indicator = {
-    at: string;
-    symbol: string;
-    values: Record<string, unknown>;
-};
-type Fill = {
-    at: string;
-    symbol: string;
-    side: string;
-    price: string;
-    reason: string;
-};
-type Bar = {
-    symbol: string;
-    opened_at: string;
-    closed_at: string;
-    open: string;
-    high: string;
-    low: string;
-    close: string;
-    volume: number;
-};
 type State = {
     inference?: {
         active: boolean;
@@ -139,146 +112,14 @@ async function api(path: string, body?: unknown, method?: string) {
     return payload;
 }
 
-function Candles({
-    bars,
-    indicators,
-    fills,
-}: {
-    bars: Bar[];
-    indicators: Indicator[];
-    fills: Fill[];
-}) {
-    const node = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        if (!node.current || !bars.length) return;
-        const chart = createChart(node.current, {
-            autoSize: true,
-            height: 360,
-            layout: {
-                background: { type: ColorType.Solid, color: "#131c27" },
-                textColor: "#8ea1b5",
-            },
-            grid: {
-                vertLines: { color: "#202c3b" },
-                horzLines: { color: "#202c3b" },
-            },
-            timeScale: {
-                timeVisible: true,
-                tickMarkFormatter: (value: Time) =>
-                    new Date(Number(value) * 1000).toLocaleTimeString("en-IN", {
-                        timeZone: "Asia/Kolkata",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                    }),
-            },
-            localization: {
-                timeFormatter: (value: Time) =>
-                    ist(new Date(Number(value) * 1000).toISOString()),
-            },
-        });
-        const series = chart.addSeries(CandlestickSeries, {
-            upColor: "#77dfb5",
-            downColor: "#fa8c99",
-            borderVisible: false,
-            wickUpColor: "#77dfb5",
-            wickDownColor: "#fa8c99",
-            priceFormat: {
-                type: "custom",
-                formatter: (value: number) => money(value),
-            },
-        });
-        series.setData(
-            bars.map((b) => ({
-                time: (Date.parse(b.opened_at) / 1000) as UTCTimestamp,
-                open: +b.open,
-                high: +b.high,
-                low: +b.low,
-                close: +b.close,
-            })),
-        );
-        const closeToOpen = new Map(
-            bars.map((b) => [
-                Date.parse(b.closed_at),
-                Date.parse(b.opened_at) / 1000,
-            ]),
-        );
-        for (const [key, color, pane] of [
-            ["ema_9", "#a5b5fb", 0],
-            ["ema_20", "#fabf77", 0],
-            ["vwap", "#77dfb5", 0],
-            ["bb_high", "#607c9a", 0],
-            ["bb_low", "#607c9a", 0],
-            ["rsi", "#b69af7", 1],
-            ["macd", "#77dfb5", 2],
-            ["macd_signal", "#fabf77", 2],
-        ] as const) {
-            const line = chart.addSeries(
-                LineSeries,
-                {
-                    color,
-                    lineWidth: 1,
-                    title: key,
-                    priceLineVisible: false,
-                    lastValueVisible: false,
-                    priceFormat: {
-                        type: "custom",
-                        formatter: (value: number) =>
-                            pane === 0 ? money(value) : value.toFixed(2),
-                    },
-                },
-                pane,
-            );
-            line.setData(
-                indicators
-                    .filter(
-                        (i) =>
-                            typeof i.values[key] === "number" &&
-                            closeToOpen.has(Date.parse(i.at)),
-                    )
-                    .map((i) => ({
-                        time: closeToOpen.get(
-                            Date.parse(i.at),
-                        )! as UTCTimestamp,
-                        value: Number(i.values[key]),
-                    })),
-            );
-        }
-        createSeriesMarkers(
-            series,
-            fills
-                .filter((f) =>
-                    bars.some(
-                        (b) => Date.parse(b.opened_at) === Date.parse(f.at),
-                    ),
-                )
-                .map((f) => ({
-                    time: (Date.parse(f.at) / 1000) as UTCTimestamp,
-                    position:
-                        f.side === "BUY"
-                            ? ("belowBar" as const)
-                            : ("aboveBar" as const),
-                    color: f.side === "BUY" ? "#77dfb5" : "#fa8c99",
-                    shape:
-                        f.side === "BUY"
-                            ? ("arrowUp" as const)
-                            : ("arrowDown" as const),
-                    text: `${f.side} ${f.price} ${f.reason}`,
-                })),
-        );
-        chart.timeScale().fitContent();
-        return () => chart.remove();
-    }, [bars, indicators, fills]);
-    return <Box ref={node} sx={{ height: 360 }} />;
-}
-
 export default function Terminal() {
     const [state, setState] = useState<State | null>(null);
-    const [tab, setTab] = useState(0);
+    const [tab, setTab] = useState(11);
     const [error, setError] = useState("");
     const [busy, setBusy] = useState(false);
     const [strategy, setStrategy] = useState("hold");
     const [shadow, setShadow] = useState("false");
+    const [marketSymbol, setMarketSymbol] = useState("RELIANCE");
     const [symbol, setSymbol] = useState("DEMO");
     const [side, setSide] = useState("BUY");
     const [product, setProduct] = useState("MIS");
@@ -358,7 +199,7 @@ export default function Terminal() {
     }, []);
     const tabs = [
         "Overview",
-        "Chart",
+        "Replay chart",
         "Order ticket",
         "Decisions",
         "Trade inspector",
@@ -368,6 +209,7 @@ export default function Terminal() {
         "Watchlist",
         "Bot arena",
         "Calibration / research",
+        "Stocks / charts",
     ];
     const run = state?.run;
     const bars = state?.candles.filter((b) => b.symbol === symbol) ?? [];
@@ -401,7 +243,11 @@ export default function Terminal() {
                         variant="outlined"
                     />
                     <Chip
-                        label={connected ? "Connected" : "Disconnected"}
+                        label={
+                            connected
+                                ? "Local service connected"
+                                : "Local service disconnected"
+                        }
                         color={connected ? "success" : "warning"}
                         size="small"
                     />
@@ -415,12 +261,23 @@ export default function Terminal() {
                     mb={3}
                 >
                     <Box>
-                        <Typography variant="h4">Trading workspace</Typography>
+                        <Typography variant="h4">
+                            {tab === 11
+                                ? "Market workspace"
+                                : "Trading workspace"}
+                        </Typography>
                         <Typography color="text.secondary" mt={1}>
-                            {ist(run?.clock ?? null)} · IST
+                            {tab === 11
+                                ? "NSE stocks, historical candles and technical indicators"
+                                : `${ist(run?.clock ?? null)} · IST`}
                         </Typography>
                     </Box>
-                    <Stack direction="row" gap={1} alignItems="center">
+                    <Stack
+                        direction="row"
+                        gap={1}
+                        alignItems="center"
+                        sx={{ display: tab === 11 ? "none" : "flex" }}
+                    >
                         <TextField
                             select
                             size="small"
@@ -459,11 +316,18 @@ export default function Terminal() {
                     </Stack>
                 </Stack>
                 <Alert severity="info" sx={{ mb: 2 }}>
-                    {state?.source === "synthetic"
-                        ? "Synthetic demo prices. "
-                        : ""}
-                    Closed candles only. Laya must be running locally for AI
-                    decisions; inference failures hold new entries.
+                    {tab === 11 ? (
+                        "Browse market history here. Replay controls, paper positions and execution stay in the trading tabs."
+                    ) : (
+                        <>
+                            {state?.source === "synthetic"
+                                ? "Synthetic demo prices. "
+                                : ""}
+                            Closed candles only. Laya must be running locally
+                            for AI decisions; inference failures hold new
+                            entries.
+                        </>
+                    )}
                 </Alert>
                 {state?.inference?.last_error && (
                     <Alert severity="warning" sx={{ mb: 2 }}>
@@ -486,6 +350,7 @@ export default function Terminal() {
                     alignItems="center"
                     flexWrap="wrap"
                     mb={3}
+                    sx={{ display: tab === 11 ? "none" : "flex" }}
                 >
                     <Button
                         variant="outlined"
@@ -621,14 +486,14 @@ export default function Terminal() {
                     <Paper sx={{ p: 3 }}>
                         <Stack direction="row" justifyContent="space-between">
                             <Typography variant="h6">
-                                {symbol} · 5 minute candles
+                                {symbol} · Replay candles
                             </Typography>
                             <Chip
                                 label={feature?.regime ?? "WARMUP"}
                                 size="small"
                             />
                         </Stack>
-                        <Candles
+                        <CandleChart
                             bars={bars}
                             indicators={
                                 state?.indicators?.filter(
@@ -1089,7 +954,14 @@ export default function Terminal() {
                         >
                             {watchlist.members?.map((member) => (
                                 <Paper key={member.symbol} sx={{ p: 2 }}>
-                                    <Typography>{member.symbol}</Typography>
+                                    <Button
+                                        onClick={() => {
+                                            setMarketSymbol(member.symbol);
+                                            setTab(11);
+                                        }}
+                                    >
+                                        {member.symbol}
+                                    </Button>
                                     <Typography
                                         variant="caption"
                                         color="text.secondary"
@@ -1103,6 +975,25 @@ export default function Terminal() {
                 )}
                 {tab === 9 && <BotPanel />}
                 {tab === 10 && <CalibrationPanel runId={run?.id} />}
+                {tab === 11 && (
+                    <MarketPanel
+                        initialSymbol={marketSymbol}
+                        onReplay={async (selected, timeframe, version) => {
+                            const result = await api("run", {
+                                source: "stored",
+                                symbol: selected,
+                                timeframe,
+                                version,
+                                strategy,
+                                shadow: shadow === "true",
+                            });
+                            setState(result);
+                            await refreshAccounts();
+                            setSymbol(selected);
+                            setTab(1);
+                        }}
+                    />
+                )}
                 <Typography
                     variant="caption"
                     color="text.secondary"

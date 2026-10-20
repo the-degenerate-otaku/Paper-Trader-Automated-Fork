@@ -18,6 +18,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from paper_trader.arena import BotArena, Mode
 from paper_trader.calendar import TradingCalendar
 from paper_trader.calibration import export_rows, fit, outcomes, save_artifact
+from paper_trader.charting import install_chart_routes
 from paper_trader.config import Section, Settings, load_settings
 from paper_trader.data import CandleStore
 from paper_trader.demo import synthetic
@@ -338,6 +339,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await asyncio.gather(terminal.arena_task, return_exceptions=True)
 
     app = FastAPI(title="NSE Paper Terminal", lifespan=lifespan, docs_url=None, redoc_url=None)
+    install_chart_routes(app, terminal.settings, terminal.database)
     app.state.terminal = terminal
     app.add_middleware(
         LocalBoundary,

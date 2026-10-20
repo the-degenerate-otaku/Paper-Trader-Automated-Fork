@@ -10,6 +10,8 @@ The React/MUI portfolio and positions components are connected to the NSE backen
 
 ## CLI setup
 
+The **Stocks / charts** workspace adds NSE symbol search, official constituent refresh, cached/downloaded stock history, five timeframes, indicator toggles and direct history-to-replay loading. The default stock is RELIANCE. Data timestamps and stale status are explicit; this is historical data, not a verified live feed. TradingView links open its full website because its public widget market list omits NSE. See [stock charts and data boundaries](docs/stock-charts.md).
+
 Python 3.11+ and Node.js 22+ are supported targets. Linux CI verifies tests and the production build; local interactive browser smoke was performed on Windows.
 
 ```sh
