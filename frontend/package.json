@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && npm run lint:paper && vite build",
+    "lint:paper": "eslint src/pages/PaperTerminal.tsx src/App.tsx",
     "lint": "eslint .",
     "preview": "vite preview",
     "build:serve": "npm run build && cd .. && paper-trader serve"

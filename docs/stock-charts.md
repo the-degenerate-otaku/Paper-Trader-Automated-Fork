@@ -1,6 +1,6 @@
 # Stock charts
 
-Open **Stocks / charts**, the default workspace. Enter an NSE symbol without `.NS`, or refresh the official Nifty 50 / Bank Nifty catalog and select a stock. The catalog uses the latest locally observed instruments for browsing; historical watchlist membership still uses the replay clock.
+Open `/?workspace=research`, then **Stocks / charts**. The default app is now the Nifty 50 paper portfolio/terminal. In the research workspace, enter an NSE symbol without `.NS`, or refresh the official Nifty 50 / Bank Nifty catalog and select a stock. The catalog uses the latest locally observed instruments for browsing; historical watchlist membership still uses the replay clock.
 
 **Load chart** reuses the latest stored snapshot for that symbol/timeframe when available, downloading on a cache miss. It does not guarantee the cached snapshot covers the entire requested range. **Refresh history** downloads a new immutable version. No synthetic price fallback is used. Data status, last closed candle and fetch time are visible. Browser history requests accept five supported timeframes, bounded date ranges and one concurrent market operation. One-minute requests use five days; intraday requests are limited to 30 days; daily requests allow up to 365 days. Provider retention, calendar coverage and availability can further restrict results.
 

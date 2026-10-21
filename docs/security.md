@@ -1,5 +1,17 @@
 # Security and smoke verification
 
+## Nifty 50 live paper portfolio — 2026-10-21
+
+The user narrowed the primary product to a Nifty 50 portfolio and manual buy/sell terminal, with a free source and no broker account. The default UI now shows positions, funds, P&L, orders, closed trades and executions. Historical research is secondary at `/?workspace=research`. The source is Yahoo streaming, explicitly best effort; no direct-NSE feed guarantee, broker API or automatic LLM orders are introduced.
+
+145 tests passed in the final full local suite, including eight live-paper regressions. Tests cover later-quote execution, persisted cash/charges/protective positions/orders, entry/exit and restored state, no fresh-quote bypass after restart, malformed/future/duplicate/out-of-order/decreasing-volume rejection, stale-context vetoes, Nifty membership freshness, protective stops without AI/history, and in-memory rollback on checkpoint-write failure. Stream gaps cannot turn accumulated unseen volume into fill liquidity. Schema 5 uses typed JSON checkpoints plus an event journal; no pickle/eval or user-supplied provider URL is used.
+
+Market-session smoke connected to all 50 observed Nifty stocks, with changing prices and exchange timestamps; all 50 were fresh in a recorded snapshot. Browser smoke submitted a one-share RELIANCE paper buy, observed its later-quote fill and active position, prepared and submitted its closing order, and verified the closed ledger. A repeat entry was blocked by trade-spacing risk. A separate HDFCBANK limit order remained pending and was cancelled from the browser. No open test exposure or pending test order remained. After server restart, the live local API matched prior balances, orders, positions, closed trades and fills, with the source correctly disconnected.
+
+Ruff lint/format, strict mypy, Bandit and the production frontend build passed. The new paper UI's ESLint check is part of `npm run build`, so CI checks it too. Python and npm dependency audits found no known vulnerabilities; all 13 live local HTTP adversarial probes passed again. Repository/history privacy scans are repeated before publication, with inherited public baseline attribution/examples separated from new findings. The primary source uses no account credentials. These are developer-run checks, not independent penetration-test certification, a profitability claim or a full-day source-reliability guarantee.
+
+Historical gaps may conservatively undercount turnover; current manual-quote health is checked separately from older gaps. AI/replay closed-candle quality gates are unchanged. Simulated fills require eligible later observations and positive observed volume; source outages, market closure or illiquidity can delay protective execution. Saved manual paper state restores, while connectivity and liquidity context require operator review/re-establishment. Research replay restart limitations remain separate.
+
 ## Stock-chart workspace — 2026-10-20
 
 [Combined source CI run 39467868140](https://github.com/the-degenerate-otaku/Paper-Trader-Automated-Fork/actions/runs/39467868140) passed on Windows and Linux for commit bded0ca, including the locked environment, tests, source analysis, privacy/dependency gates and frontend build.

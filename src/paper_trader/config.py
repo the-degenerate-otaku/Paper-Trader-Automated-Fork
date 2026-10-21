@@ -346,6 +346,16 @@ class ResearchConfig(Section):
         return values
 
 
+class LivePaperConfig(Section):
+    quote_max_age_seconds: int = Field(default=30, ge=1, le=300)
+    future_tolerance_seconds: int = Field(default=5, ge=0, le=30)
+    reconnect_seconds: int = Field(default=5, ge=1, le=120)
+    stream_cycle_seconds: int = Field(default=300, ge=30, le=3600)
+    history_poll_seconds: int = Field(default=60, ge=30, le=600)
+    history_days: int = Field(default=5, ge=2, le=5)
+    max_prepared_symbols: int = Field(default=10, ge=1, le=50)
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         extra="forbid",
@@ -365,6 +375,7 @@ class Settings(BaseSettings):
     server: ServerConfig = Field(default_factory=ServerConfig)
     arena: ArenaConfig = Field(default_factory=ArenaConfig)
     research: ResearchConfig = Field(default_factory=ResearchConfig)
+    live_paper: LivePaperConfig = Field(default_factory=LivePaperConfig)
     execution: ExecutionConfig
     instrument_rules: dict[str, InstrumentRule]
     charges: list[ChargesConfig] = Field(min_length=1)

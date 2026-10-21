@@ -24,6 +24,7 @@ from paper_trader.data import CandleStore
 from paper_trader.demo import synthetic
 from paper_trader.engine import EmaStrategy, HoldStrategy, ReplayEngine, Strategy
 from paper_trader.inference import SystemOneStrategy
+from paper_trader.live_paper import LivePaper, install_live_paper
 from paper_trader.research import load_dataset, stress, walk_forward
 from paper_trader.storage import Database
 from paper_trader.trading import Order
@@ -339,10 +340,12 @@ class Terminal:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     terminal = Terminal(settings or load_settings(Path("config.yaml"), Path(".env")))
+    paper = LivePaper(terminal.settings, terminal.database)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
+        await paper.stop()
         if terminal.task:
             terminal.task.cancel()
             await asyncio.gather(terminal.task, return_exceptions=True)
@@ -352,6 +355,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="NSE Paper Terminal", lifespan=lifespan, docs_url=None, redoc_url=None)
     install_chart_routes(app, terminal.settings, terminal.database)
+    install_live_paper(app, paper)
     app.state.terminal = terminal
     app.add_middleware(
         LocalBoundary,
