@@ -4,6 +4,8 @@ Local Nifty 50 paper portfolio and buy/sell terminal for Windows and Linux. Virt
 
 ## Status
 
+The research phase was merged into main at the user's request. Comparison settings remain opt-in. A [GitHub Pages frontend and protected PC gateway](docs/phone-access.md) support phone access without moving the trading engine or model to a cloud host.
+
 A separate [research comparison](docs/research-review.md) is prepared for review, with [isolated baseline and candidate profiles](profiles/README.md). It has not been activated or promoted into the default paper account; the model weights and active config remain unchanged.
 
 [Research phase 1](docs/research-phase-1.md) adds candidate-only cost screening at order submission and fill time, aggregate planned stop-risk budgeting across open and queued entries, and persisted economic diagnostics. Other findings from the PDF review remain tracked for later phases.

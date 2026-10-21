@@ -1,3 +1,4 @@
+import { apiFetch } from "../connection";
 import { useEffect, useState } from "react";
 import {
     Alert,
@@ -44,7 +45,7 @@ const atIst = (value: string) =>
     });
 
 async function request(path: string, body?: unknown) {
-    const response = await fetch(`/api/market/${path}`, {
+    const response = await apiFetch(`/api/market/${path}`, {
         method: body === undefined ? "GET" : "POST",
         headers: { "Content-Type": "application/json", "X-Paper-Request": "1" },
         body: body === undefined ? undefined : JSON.stringify(body),

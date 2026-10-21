@@ -1,6 +1,6 @@
 # Research phase 1: entry economics and planned stop risk
 
-This is the first implementation phase from the PDF review. It is isolated on the research comparison branch. It does not train Laya, introduce multi-day trading or activate a comparison account. The baseline and default configuration retain their previous entry behavior. The research-balanced profile enables the new checks for all its manual and automated entries.
+This is the first implementation phase from the PDF review. The user authorized merging it into main on 2026-10-21. It does not train Laya, introduce multi-day trading or activate a comparison account. The baseline and default configuration retain their previous entry behavior. The research-balanced profile enables the new checks for all its manual and automated entries.
 
 ## Cost-aware entries
 

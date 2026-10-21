@@ -1,3 +1,4 @@
+import { apiFetch, remoteMode, pollSnapshot } from "../connection";
 import { useEffect, useState } from "react";
 import {
     Alert,
@@ -97,7 +98,7 @@ const ist = (value: string | null) =>
         : "Waiting for a closed candle";
 
 async function api(path: string, body?: unknown, method?: string) {
-    const response = await fetch(`/api/${path}`, {
+    const response = await apiFetch(`/api/${path}`, {
         method: method ?? (body === undefined ? "GET" : "POST"),
         headers: { "Content-Type": "application/json", "X-Paper-Request": "1" },
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -161,6 +162,7 @@ export default function Terminal() {
             selectAccount(availableAccounts[0]);
     }, [availableAccounts, selectedAccount, selectAccount]);
     useEffect(() => {
+        if (remoteMode) return pollSnapshot<State>("/api/terminal", setState, setConnected);
         api("terminal")
             .then(setState)
             .catch((e) => setError(e.message));

@@ -1,3 +1,4 @@
+import { apiFetch } from "../connection";
 import { useEffect, useState } from "react";
 import {
     Alert,
@@ -43,7 +44,7 @@ export default function CalibrationPanel({ runId }: { runId?: string }) {
     const [busy, setBusy] = useState(false);
     useEffect(() => {
         if (runId) setSelected(runId);
-        fetch("/api/runs")
+        apiFetch("/api/runs")
             .then((r) => {
                 if (!r.ok) throw new Error("Cannot load runs");
                 return r.json();
@@ -56,7 +57,7 @@ export default function CalibrationPanel({ runId }: { runId?: string }) {
         setBusy(true);
         setResult(null);
         try {
-            const response = await fetch(`/api/research/${kind}`, {
+            const response = await apiFetch(`/api/research/${kind}`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -97,7 +98,7 @@ export default function CalibrationPanel({ runId }: { runId?: string }) {
     }
     async function ledger() {
         try {
-            const response = await fetch(`/api/runs/${selected}/report`);
+            const response = await apiFetch(`/api/runs/${selected}/report`);
             if (!response.ok) throw new Error("Cannot load ledger");
             setResult(await response.json());
         } catch (e) {

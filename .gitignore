@@ -242,3 +242,4 @@ data/
 dist/
 *.egg-info/
 work/
+/frontend/dist-pages/

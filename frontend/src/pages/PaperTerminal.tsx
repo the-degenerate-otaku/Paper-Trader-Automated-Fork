@@ -1,3 +1,4 @@
+import { apiFetch, remoteMode, pollSnapshot } from "../connection";
 import { useEffect, useState } from "react";
 import {
     ChartNoAxesCombined,
@@ -108,7 +109,7 @@ const when = (value: string) =>
 const readable = (value: string) => value.replaceAll("_", " ").toLowerCase();
 
 async function api(path = "", body?: unknown, method?: string) {
-    const response = await fetch(`/api/paper${path}`, {
+    const response = await apiFetch(`/api/paper${path}`, {
         method: method ?? (body === undefined ? "GET" : "POST"),
         headers: { "Content-Type": "application/json", "X-Paper-Request": "1" },
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -170,13 +171,14 @@ export default function PaperTerminal() {
         };
     }, [symbol, tab, feed, historyPoll]);
     useEffect(() => {
+        if (remoteMode) return pollSnapshot<State>("/api/paper", setState, setConnected);
         let active = true;
         api()
             .then((data) => {
                 if (active) setState(data);
             })
             .catch(() => {
-                if (active) setError("Local paper service unavailable");
+                if (active) setError("Paper service unavailable");
             });
         let socket: WebSocket | null = null;
         let retry: ReturnType<typeof setTimeout>;

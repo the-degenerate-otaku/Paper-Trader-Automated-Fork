@@ -33,6 +33,34 @@ body {
     margin: 0;
     min-width: 320px;
 }
+.paper-app.remote-connection {
+    padding-top: var(--space-7);
+    padding-bottom: var(--space-7);
+}
+.remote-connection section {
+    max-width: 640px;
+    padding-top: var(--space-6);
+    margin-top: var(--space-6);
+    border-top: 1px solid var(--line);
+}
+.remote-connection section > p { margin-top: var(--space-3); }
+.remote-connection form {
+    display: grid;
+    gap: var(--space-3);
+    margin-top: var(--space-5);
+}
+.remote-connection input { width: 100%; min-width: 0; }
+.remote-connection input::placeholder { color: var(--muted); opacity: 1; }
+.remote-connection button { justify-self: start; }
+.paper-app.remote-session {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-4);
+    padding-top: var(--space-3);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--line);
+}
 .paper-app {
     max-width: 1440px;
     margin: auto;

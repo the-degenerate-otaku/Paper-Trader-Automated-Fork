@@ -1,3 +1,4 @@
+import { apiFetch } from "../connection";
 import { useEffect, useState } from "react";
 import {
     Alert,
@@ -40,7 +41,7 @@ export default function BotPanel() {
     });
     const [error, setError] = useState("");
     async function request(path = "", payload?: unknown) {
-        const response = await fetch(`/api/arena${path}`, {
+        const response = await apiFetch(`/api/arena${path}`, {
             method: payload === undefined ? "GET" : "POST",
             headers: {
                 "Content-Type": "application/json",

@@ -1,3 +1,4 @@
+import { apiFetch, remoteMode } from "../connection";
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import type { AccountSummary, AccountsResponse } from '../types/account';
 
@@ -68,7 +69,8 @@ const CACHE_EXPIRY_KEY = 'openPaperTrading_cacheExpiry';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Utility Functions
-const saveToLocalStorage = (key: string, data: any) => {
+const saveToLocalStorage = (key: string, data: unknown) => {
+  if (remoteMode) return;
   try {
     localStorage.setItem(key, JSON.stringify(data));
   } catch (error) {
@@ -77,6 +79,7 @@ const saveToLocalStorage = (key: string, data: any) => {
 };
 
 const loadFromLocalStorage = (key: string) => {
+  if (remoteMode) return null;
   try {
     const item = localStorage.getItem(key);
     return item ? JSON.parse(item) : null;
@@ -93,7 +96,7 @@ const isCacheValid = (): boolean => {
 
 // API Functions
 const fetchAccounts = async (): Promise<AccountSummary[]> => {
-  const response = await fetch(`${API_BASE_URL}/accounts`);
+  const response = await apiFetch(`${API_BASE_URL}/accounts`);
   if (!response.ok) {
     throw new Error(`Failed to fetch accounts: ${response.status} ${response.statusText}`);
   }
@@ -108,7 +111,7 @@ const fetchAccounts = async (): Promise<AccountSummary[]> => {
 
 const validateAccountExists = async (accountId: string): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/accounts/${accountId}/balance`);
+    const response = await apiFetch(`${API_BASE_URL}/accounts/${accountId}/balance`);
     return response.ok;
   } catch {
     return false;
