@@ -62,3 +62,5 @@ Calibration / research provides chronological temperature fitting, held-out reli
 Demo prices are synthetic. EMA is an explicit deterministic baseline separate from the AI policy. CSV/yfinance history is not an exchange-quality live feed. No live order placement is implemented.
 
 Configure calendar, constituents, data, charges and risk in config.yaml. Databases, .env files, keys and logs are ignored by Git. Keep credentials outside this public repository. See [security](docs/security.md), [charges](docs/charges.md), [source audit](docs/reference-audit.md) and [migration](docs/fork-migration.md).
+
+Phone access supports the GitHub Pages frontend with a private Tailscale Serve connection to the authenticated PC gateway. Remember this device is optional; Disconnect preserves a saved login, while Forget this device removes it. See [phone setup and storage behavior](docs/phone-access.md).

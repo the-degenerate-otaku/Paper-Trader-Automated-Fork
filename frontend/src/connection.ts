@@ -1,5 +1,31 @@
 export const remoteMode = import.meta.env.VITE_REMOTE_BACKEND === "true";
 let connection: { origin: string; key: string } | null = null;
+const rememberedConnectionKey = "paper-remembered-connection";
+
+export function readRememberedConnection(): { origin: string; key: string } | null {
+    try {
+        const saved = JSON.parse(localStorage.getItem(rememberedConnectionKey) ?? "null");
+        if (saved && typeof saved.origin === "string" && typeof saved.key === "string" &&
+            saved.origin.length <= 256 && /^[A-Za-z0-9_-]{32,256}$/.test(saved.key)) {
+            return { origin: saved.origin, key: saved.key };
+        }
+    } catch { return null; }
+    return null;
+}
+
+export function rememberConnection(origin: string, key: string) {
+    try { localStorage.setItem(rememberedConnectionKey, JSON.stringify({ origin, key })); }
+    catch { throw new Error("This browser cannot save the login. Uncheck Remember this device to connect for this session."); }
+}
+
+export function forgetConnection() {
+    localStorage.removeItem(rememberedConnectionKey);
+}
+
+export function readLastOrigin() {
+    try { return localStorage.getItem("paper-backend-origin") ?? ""; }
+    catch { return ""; }
+}
 
 export function setConnection(origin: string, key: string) {
     const url = new URL(origin);

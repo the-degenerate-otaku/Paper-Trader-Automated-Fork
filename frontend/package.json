@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "test:connection": "node --test tests/connection.test.mjs",
     "dev": "vite",
     "build": "tsc -b && npm run lint:paper && vite build",
     "lint:paper": "eslint src/pages/PaperTerminal.tsx src/App.tsx",
