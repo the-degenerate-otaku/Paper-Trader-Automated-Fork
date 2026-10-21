@@ -9,6 +9,13 @@ from paper_trader.config import Settings, load_settings
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_position_limit_cannot_exceed_total_exposure() -> None:
+    content = yaml.safe_load((ROOT / "config.yaml").read_text())
+    content["risk"]["max_exposure_pct"] = content["risk"]["max_position_pct"] - 1
+    with pytest.raises(ValidationError, match="Position limit exceeds total exposure limit"):
+        Settings.model_validate(content)
+
+
 def test_paths_are_relative_to_config_not_cwd(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -42,7 +49,6 @@ def test_dotenv_overrides_yaml(tmp_path: Path) -> None:
         ("session", "last_entry", "16:00"),
         ("session", "weekdays", [7]),
         ("risk", "max_exposure_pct", 101),
-        ("risk", "max_position_pct", 90),
         ("risk", "max_position_pctx", 10),
         ("system_one", "endpoint", "https://cloud.example/v1/systemone"),
         ("system_one", "endpoint", "http://127.0.0.1:8000/chat"),

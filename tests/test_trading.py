@@ -185,7 +185,11 @@ def test_mis_squareoff_and_trailing_stops(settings: Settings) -> None:
 def test_risk_limits_override_any_entry(settings: Settings) -> None:
     sim = exchange(settings)
     assert "POSITION_LIMIT" in sim.submit(order(quantity=1000), D(100), context())
-    assert "TRADE_RISK_LIMIT" in sim.submit(order(stop_price="1", quantity=10), D(100), context())
+    budget = sim.portfolio.equity * settings.risk.risk_per_trade_pct / 100
+    quantity = int(budget / D(99)) + 1
+    assert "TRADE_RISK_LIMIT" in sim.submit(
+        order(stop_price="1", quantity=quantity), D(100), context()
+    )
     assert "TURNOVER_FILTER" in sim.submit(order(), D(100), RiskContext(bar_volume=10000))
     assert "REFERENCE_INSTRUMENT" in sim.submit(
         order(), D(100), RiskContext(instrument_type="INDEX")
@@ -198,7 +202,15 @@ def test_risk_limits_override_any_entry(settings: Settings) -> None:
 def test_loss_limits_and_cooldown_are_account_wide(settings: Settings) -> None:
     sim = exchange(settings)
     sim.portfolio.checkpoint(AT, sim.calendar)
-    sim.portfolio.cash = D(89000)
+    loss_pct = (
+        max(
+            settings.risk.daily_loss_limit_pct,
+            settings.risk.weekly_loss_limit_pct,
+            settings.risk.max_drawdown_kill_pct,
+        )
+        + 1
+    )
+    sim.portfolio.cash = sim.portfolio.cash * (1 - loss_pct / 100)
     reasons = sim.submit(order(), D(100), context())
     assert {"DAILY_LOSS_LIMIT", "WEEKLY_LOSS_LIMIT", "DRAWDOWN_KILL"}.issubset(reasons)
     sim = exchange(settings)

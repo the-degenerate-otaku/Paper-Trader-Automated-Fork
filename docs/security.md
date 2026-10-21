@@ -1,5 +1,13 @@
 # Security and smoke verification
 
+## Permissive paper-risk experiment - 2026-10-21
+
+Final verification: all 157 tests passed, alongside Ruff, formatting, mypy, source/launcher Bandit, application/inference dependency advisory audits, npm audit and the repository/history privacy scan. All 13 live HTTP security probes passed. The restarted settings API confirmed the full permissive configuration, and the connected AI bot was re-enabled. An earlier full-suite attempt failed on the old configuration-dependent coherence assumption and ended with a Windows faulthandler access violation; the corrected full rerun completed successfully without that timeout hook. New-commit CI has not yet been observed.
+
+The user explicitly chose looser restrictions for more paper trades. config.yaml now raises quantitative risk, concentration, loss, trade-count and correlation allowances and lowers liquidity, spacing and cooldown restrictions. The reversal-score ceiling is 0.70; direction remains 0.50 and conviction LOW. The full before/after settings are in paper-experiment.md. This increases allowed paper losses and exposure, rather than making the strategy low-risk. Fresh data, closed-candle integrity, valid stops, funds/margin, banned instruments, market-session restrictions and paper-only transport remain enforced. Account balances, positions, loss counters and kill-switch state are not reset.
+
+Regression assertions for risk budgets, cooldown timestamps, loss limits and position/exposure coherence now derive their inputs from configuration instead of assuming the prior defaults. The original coherence check had treated a 90% position as invalid only because the previous total exposure cap was lower; the replacement explicitly verifies position value cannot exceed total exposure under either profile. The rules themselves were not bypassed or removed.
+
 ## Requested LOW-conviction paper experiment - 2026-10-21
 
 Changed only system_one.min_conviction from MEDIUM to LOW with explicit user authorization. Direction remains 0.5 and reversal-risk maximum remains 0.4; all execution, stop, funds, exposure, session and loss checks remain unchanged. LOW corresponds to an expected ordinal score minimum of zero, so the conviction filter no longer excludes otherwise valid probability distributions in this experiment. This is not a calibrated trading-performance claim.

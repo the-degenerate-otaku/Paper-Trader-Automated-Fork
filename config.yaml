@@ -156,27 +156,27 @@ charges:
     money_quantum: 0.01
     stt_quantum: 1
 risk:
-  risk_per_trade_pct: 0.5
-  max_position_pct: 10
-  max_exposure_pct: 60
-  max_open_positions: 6
-  max_per_sector: 3
-  daily_loss_limit_pct: 2
-  weekly_loss_limit_pct: 5
-  max_drawdown_kill_pct: 10
-  max_consecutive_losses: 3
-  cooldown_minutes: 30
-  min_avg_turnover_inr: 100000000
+  risk_per_trade_pct: 1
+  max_position_pct: 20
+  max_exposure_pct: 90
+  max_open_positions: 10
+  max_per_sector: 5
+  daily_loss_limit_pct: 10
+  weekly_loss_limit_pct: 20
+  max_drawdown_kill_pct: 30
+  max_consecutive_losses: 10
+  cooldown_minutes: 1
+  min_avg_turnover_inr: 1000000
   atr_stop_multiple: 1.5
   reward_risk_ratio: 2
-  max_trades_per_day: 20
-  max_trades_per_symbol: 3
-  minimum_trade_gap_minutes: 5
-  minimum_bar_volume: 100
-  max_correlated_positions: 2
-  correlation_threshold: 0.8
+  max_trades_per_day: 100
+  max_trades_per_symbol: 20
+  minimum_trade_gap_minutes: 0
+  minimum_bar_volume: 10
+  max_correlated_positions: 10
+  correlation_threshold: 0.95
   event_blackouts: {}
-  event_blackout_days: 1
+  event_blackout_days: 0
   banned_symbols: []
   sizing_buffer_bps: 25
 system_one:
@@ -188,7 +188,7 @@ system_one:
   timeout_ms: 5000
   min_direction_prob: 0.5
   min_conviction: LOW
-  max_reversal_risk: 0.4
+  max_reversal_risk: 0.7
   temperature_scalar: 1
   retries: 1
   max_response_bytes: 65536

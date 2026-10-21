@@ -4,6 +4,8 @@ Local Nifty 50 paper portfolio and buy/sell terminal for Windows and Linux. Virt
 
 ## Status
 
+The active configuration uses a [permissive paper experiment](docs/paper-experiment.md) requested for observing more entries. This increases allowed risk and exposure; it does not establish strategy quality.
+
 The default app is now a manual paper-trading portal: active positions, funds, P&L, pending/filled/cancelled/rejected orders, closed trades and executions. Its terminal has the official observed Nifty 50 stock list, streaming prices with exchange timestamps, market/limit/stop/bracket tickets, protective stops, targets and trailing distances. Orders fill only on later fresh observations with positive observed volume, through the existing paper exchange and deterministic risk checks. [Operation and data limitations](docs/live-paper.md).
 
 Paper positions, balances, orders and completed trades persist across restart. Price connections and liquidity context must be re-established; no fills are reconstructed during downtime. The primary portal includes opt-in local Laya automation for MIS trades on the five largest absolute percentage movers. See [automation setup and controls](docs/automation.md). Automation starts disabled after restart. Full-day unattended feed continuity is unverified.

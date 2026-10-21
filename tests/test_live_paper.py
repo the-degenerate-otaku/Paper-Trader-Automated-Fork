@@ -223,7 +223,8 @@ def test_stop_risk_rejection_explains_absolute_price_and_budget(live):
     assert "TRADE_RISK_LIMIT" in result["vetoes"]
     message = result["messages"][0]
     assert "18,299.80" in message
-    assert "5,000.00" in message
+    budget = paper.exchange.portfolio.equity * paper.settings.risk.risk_per_trade_pct / 100
+    assert f"{budget:,.2f}" in message
     assert "absolute stock price" in message
     assert paper.exchange.portfolio.positions == {}
     assert paper.submit(ticket(quantity=20, stop_price="915"))["vetoes"] == []
@@ -238,7 +239,10 @@ def test_cooldown_and_short_stop_messages_preserve_both_reasons(live):
     result = paper.submit(ticket(side="SELL", product="MIS", stop_price="90"))
     assert "LOSS_COOLDOWN" in result["vetoes"] and "INVALID_STOP" in result["vetoes"]
     message = " ".join(result["messages"])
-    assert "11:30:00 IST" in message
+    resume = (clock[0] + timedelta(minutes=paper.settings.risk.cooldown_minutes)).astimezone(
+        paper.calendar.zone
+    )
+    assert f"{resume:%H:%M:%S} IST" in message
     assert "strictly above" in message
     assert "reduce-only closing orders remain available" in message
     assert "INVALID_STOP" not in paper.submit(ticket(stop_price="90"))["vetoes"]
