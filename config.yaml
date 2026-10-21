@@ -1,4 +1,10 @@
 mode: paper
+auto_paper:
+  cpu_threads: 4
+  poll_seconds: 10
+  mover_count: 5
+  max_candle_age_seconds: 120
+  max_events: 100
 research:
   horizon_bars: 12
   reliability_bins: 10
@@ -178,8 +184,8 @@ system_one:
   checkpoint: typed-decisions
   checkpoint_repo: convaiinnovations/laya
   checkpoint_subfolder: typed-decisions
-  checkpoint_revision: unverified
-  timeout_ms: 300
+  checkpoint_revision: 7b928d828b7b0e022f929d9bd2e44165aa270148
+  timeout_ms: 5000
   min_direction_prob: 0.65
   min_conviction: MEDIUM
   max_reversal_risk: 0.4

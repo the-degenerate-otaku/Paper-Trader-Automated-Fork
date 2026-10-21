@@ -60,6 +60,21 @@ type Order = {
     reasons?: string[];
 };
 type State = {
+    automation: {
+        enabled: boolean;
+        status: string;
+        symbols: string[];
+        model: string;
+        model_healthy: boolean;
+        latency_ms: number | null;
+        events: {
+            symbol: string;
+            at: string;
+            direction: string;
+            reason: string;
+            vetoes: string[];
+        }[];
+    };
     feed: string;
     source: string;
     now: string;
@@ -276,7 +291,7 @@ export default function PaperTerminal() {
                             </Box>
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                            NIFTY 50 · VIRTUAL MONEY · MANUAL PAPER TRADING
+                            NIFTY 50 · VIRTUAL MONEY · PAPER TRADING
                         </Typography>
                     </Box>
                     <Chip
@@ -313,6 +328,106 @@ export default function PaperTerminal() {
                 </Toolbar>
             </AppBar>
             <Container maxWidth="xl" sx={{ py: 3 }}>
+                <Paper sx={{ p: 2, mb: 3 }}>
+                    <Stack
+                        direction="row"
+                        gap={2}
+                        alignItems="center"
+                        flexWrap="wrap"
+                    >
+                        <Box sx={{ flex: 1 }}>
+                            <Typography variant="h6">
+                                Local Laya auto trading · Intraday
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                Watches today's top 5 absolute percentage
+                                movers, including gainers and losers. Uses the
+                                same paper funds and risk limits as manual
+                                trades.
+                            </Typography>
+                        </Box>
+                        <Button
+                            variant="contained"
+                            color={
+                                state?.automation.enabled
+                                    ? "warning"
+                                    : "primary"
+                            }
+                            disabled={
+                                busy ||
+                                !connected ||
+                                (!state?.automation.enabled &&
+                                    state?.feed !== "connected")
+                            }
+                            onClick={() =>
+                                act(
+                                    `/automation/${state?.automation.enabled ? "stop" : "start"}`,
+                                )
+                            }
+                        >
+                            {state?.automation.enabled
+                                ? "Stop AI entries"
+                                : "Start AI paper trading"}
+                        </Button>
+                    </Stack>
+                    <Typography variant="body2" my={1}>
+                        {state?.automation.status ??
+                            "Loading automation status…"}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        Model: {state?.automation.model ?? "Laya"} ·{" "}
+                        {state?.automation.model_healthy
+                            ? "Available"
+                            : "Not verified / unavailable"}
+                        {state?.automation.symbols.length
+                            ? ` · Watching ${state.automation.symbols.join(", ")}`
+                            : ""}
+                        . Stops and targets remain active when AI entries are
+                        stopped, while the app and feed run. Automation starts
+                        disabled after a restart.
+                    </Typography>
+                    {!!state?.automation.events.length && (
+                        <TableContainer sx={{ maxHeight: 230, mt: 2 }}>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow>
+                                        {[
+                                            "Time (IST)",
+                                            "Stock",
+                                            "Decision",
+                                            "Reason / risk checks",
+                                        ].map((h) => (
+                                            <TableCell key={h}>{h}</TableCell>
+                                        ))}
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {[...state.automation.events]
+                                        .reverse()
+                                        .map((e, i) => (
+                                            <TableRow key={`${e.at}-${i}`}>
+                                                <TableCell>
+                                                    {when(e.at)}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {e.symbol}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {e.direction}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {[
+                                                        e.reason,
+                                                        ...e.vetoes,
+                                                    ].join(" · ")}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    )}
+                </Paper>
                 <Stack
                     direction="row"
                     justifyContent="space-between"

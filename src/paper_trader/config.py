@@ -356,6 +356,14 @@ class LivePaperConfig(Section):
     max_prepared_symbols: int = Field(default=10, ge=1, le=50)
 
 
+class AutoPaperConfig(Section):
+    cpu_threads: int = Field(default=4, ge=1, le=16)
+    poll_seconds: int = Field(default=10, ge=1, le=300)
+    mover_count: int = Field(default=5, ge=1, le=10)
+    max_candle_age_seconds: int = Field(default=120, ge=60, le=300)
+    max_events: int = Field(default=100, ge=10, le=1000)
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         extra="forbid",
@@ -376,6 +384,7 @@ class Settings(BaseSettings):
     arena: ArenaConfig = Field(default_factory=ArenaConfig)
     research: ResearchConfig = Field(default_factory=ResearchConfig)
     live_paper: LivePaperConfig = Field(default_factory=LivePaperConfig)
+    auto_paper: AutoPaperConfig = Field(default_factory=AutoPaperConfig)
     execution: ExecutionConfig
     instrument_rules: dict[str, InstrumentRule]
     charges: list[ChargesConfig] = Field(min_length=1)

@@ -17,6 +17,7 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
 from pydantic import Field, field_validator
 
+from paper_trader.auto_paper import AutoPaper
 from paper_trader.calendar import TradingCalendar
 from paper_trader.config import Section, Settings
 from paper_trader.data import CandleStore, YFinanceProvider, quality
@@ -117,6 +118,7 @@ class LivePaper:
             ).fetchone()
         if row:
             self.restore(SavedPaper.model_validate_json(row[0]))
+        self.automation = AutoPaper(self)
 
     def membership(self) -> None:
         with self.database.connect() as connection:
@@ -230,7 +232,7 @@ class LivePaper:
             ),
         )
 
-    def submit(self, ticket: Ticket) -> dict[str, object]:
+    def submit(self, ticket: Ticket, *, automated: bool = False) -> dict[str, object]:
         quote = self.quotes.get(ticket.symbol)
         if not quote or not self.fresh(quote) or not quote.regular or self.feed != "connected":
             raise HTTPException(409, "A fresh regular-session streaming quote is required")
@@ -249,7 +251,7 @@ class LivePaper:
         try:
             self.persist(
                 "order_rejected" if reasons else "order_submitted",
-                {"order": order.model_dump(mode="json"), "vetoes": reasons},
+                {"order": order.model_dump(mode="json"), "vetoes": reasons, "automated": automated},
             )
         except Exception:
             self.restore(previous)
@@ -461,6 +463,7 @@ class LivePaper:
         self.task = asyncio.create_task(self.run())
 
     async def stop(self) -> None:
+        await self.automation.stop()
         self.feed = "disconnected"
         if self.task:
             self.task.cancel()
@@ -545,6 +548,7 @@ class LivePaper:
             jsonable_encoder(
                 {
                     "source": "Yahoo Finance streaming · best effort",
+                    "automation": self.automation.snapshot(),
                     "feed": self.feed,
                     "session": asdict(self.calendar.status(now)),
                     "now": now.isoformat(),
@@ -597,6 +601,16 @@ class LivePaper:
 
 
 def install_live_paper(app: FastAPI, paper: LivePaper) -> None:
+    @app.post("/api/paper/automation/start")
+    async def auto_start() -> dict[str, object]:
+        await paper.automation.start()
+        return paper.snapshot()
+
+    @app.post("/api/paper/automation/stop")
+    async def auto_stop() -> dict[str, object]:
+        await paper.automation.stop()
+        return paper.snapshot()
+
     @app.get("/api/paper")
     async def snapshot() -> dict[str, object]:
         return paper.snapshot()

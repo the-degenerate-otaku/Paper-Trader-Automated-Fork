@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from paper_trader.api import create_app
 from paper_trader.config import Settings
 from paper_trader.demo import synthetic
+from paper_trader.engine import Signal
 from paper_trader.live_paper import LivePaper, Ticket
 from paper_trader.storage import Database
 
@@ -309,3 +310,163 @@ def test_history_cache_keeps_pending_order_context(live, monkeypatch):
     assert set(paper.bars) == {"TEST0"}
     with pytest.raises(HTTPException):
         asyncio.run(paper.prepare("OUTSIDE"))
+
+
+def seed_movers(paper, clock):
+    from paper_trader.live_paper import Quote
+
+    for symbol in paper.members:
+        paper.quotes[symbol] = Quote(
+            symbol=symbol,
+            price=100,
+            at=clock[0],
+            day_volume=10000,
+            regular=True,
+            change_percent=0,
+        )
+    paper.quotes["RELIANCE"].change_percent = -10
+    paper.quotes["TEST0"].change_percent = 5
+
+
+def test_auto_movers_rank_absolute_percent_and_require_all_fresh(live):
+    paper, clock = live
+    seed_movers(paper, clock)
+    assert paper.automation.movers()[:2] == ["RELIANCE", "TEST0"]
+    assert len(paper.automation.movers()) == 5
+    paper.quotes["TEST1"].at -= timedelta(seconds=60)
+    assert paper.automation.movers() == []
+
+
+def test_auto_model_unavailable_never_enables_entries(live, monkeypatch):
+    paper, _ = live
+
+    async def unavailable():
+        return False
+
+    monkeypatch.setattr(paper.automation.strategy, "health", unavailable)
+    with pytest.raises(HTTPException):
+        asyncio.run(paper.automation.start())
+    assert not paper.automation.enabled and not paper.exchange.orders
+
+
+def test_auto_sizes_mis_orders_and_stop_only_cancels_bot_entries(live):
+    paper, clock = live
+    tick(paper, clock)
+    manual = paper.submit(ticket())["id"]
+    paper.automation.enabled = True
+    event = {}
+    asyncio.run(paper.automation.submit("RELIANCE", clock[0], 1.0, True, event))
+    assert event["vetoes"] == []
+    bot = paper.exchange.orders[event["order_id"]]
+    assert bot.order.product == "MIS" and bot.order.stop_price < Decimal(100)
+    assert bot.order.target_price > Decimal(100) and bot.order.quantity > 0
+    restored = LivePaper(paper.settings, paper.database, lambda: clock[0])
+    assert not restored.automation.enabled
+    assert event["order_id"] in restored.automation.order_ids
+    assert restored.exchange.orders[event["order_id"]].status == "CANCELLED"
+    assert restored.exchange.orders[manual].status == "OPEN"
+    asyncio.run(paper.automation.stop())
+    assert bot.status == "CANCELLED" and paper.exchange.orders[manual].status == "OPEN"
+
+
+def test_auto_cannot_bypass_cooldown_stale_quote_or_stop_after_disable(live):
+    paper, clock = live
+    tick(paper, clock)
+    paper.automation.enabled = True
+    portfolio = paper.exchange.portfolio
+    portfolio.last_loss_at = clock[0]
+    portfolio.consecutive_losses = paper.settings.risk.max_consecutive_losses
+    event = {}
+    asyncio.run(paper.automation.submit("RELIANCE", clock[0], 1.0, True, event))
+    assert "LOSS_COOLDOWN" in event["vetoes"]
+    clock[0] += timedelta(seconds=60)
+    asyncio.run(paper.automation.submit("RELIANCE", clock[0], 1.0, True, event))
+    assert "fresh" in event["vetoes"][0]
+    paper.automation.enabled = False
+    asyncio.run(paper.automation.submit("RELIANCE", clock[0], 1.0, True, event))
+    assert event["vetoes"] == ["STALE_AI_DECISION"]
+    assert not paper.exchange.orders
+
+
+def test_auto_closed_candle_once_and_restart_deduplication(live, monkeypatch):
+    paper, clock = live
+    seed_movers(paper, clock)
+    paper.settings.auto_paper.mover_count = 1
+    paper.automation.enabled = True
+    calls = []
+    future = paper.bars["RELIANCE"][-1].model_copy(
+        update={
+            "opened_at": clock[0] + timedelta(minutes=1),
+            "closed_at": clock[0] + timedelta(minutes=2),
+        }
+    )
+    paper.bars["RELIANCE"] += (future,)
+
+    async def prepared(symbol):
+        return None
+
+    async def decide(snapshot, portfolio):
+        calls.append(snapshot.at)
+        paper.automation.strategy.healthy = True
+        return Signal("HOLD", "MODEL_NEUTRAL")
+
+    monkeypatch.setattr(paper, "prepare", prepared)
+    monkeypatch.setattr(paper.automation.strategy, "decide", decide)
+
+    async def cycle():
+        await paper.automation.cycle()
+        await paper.automation.cycle()
+
+    asyncio.run(cycle())
+    assert len(calls) == 1 and calls[0] <= clock[0]
+    assert paper.automation.events[-1]["reason"] == "MODEL_NEUTRAL"
+    restored = LivePaper(paper.settings, paper.database, lambda: clock[0])
+    assert restored.automation.last_bars["RELIANCE"] == calls[0]
+    assert not restored.automation.enabled
+
+
+def test_auto_rejects_gapped_or_old_candles_without_inference(live, monkeypatch):
+    paper, clock = live
+    seed_movers(paper, clock)
+    paper.settings.auto_paper.mover_count = 1
+    paper.automation.enabled = True
+    paper.bars["RELIANCE"] = paper.bars["RELIANCE"][:-1]
+    paper.bars["RELIANCE"] = paper.bars["RELIANCE"][:-20] + paper.bars["RELIANCE"][-19:]
+
+    async def prepared(symbol):
+        return None
+
+    async def unexpected(*args):
+        pytest.fail("Inference must not see gapped data")
+
+    monkeypatch.setattr(paper, "prepare", prepared)
+    monkeypatch.setattr(paper.automation.strategy, "decide", unexpected)
+    asyncio.run(paper.automation.cycle())
+    assert not paper.automation.events and not paper.exchange.orders
+
+
+def test_auto_stop_during_inference_prevents_late_order(live, monkeypatch):
+    paper, clock = live
+    seed_movers(paper, clock)
+    paper.settings.auto_paper.mover_count = 1
+    paper.automation.enabled = True
+
+    async def run():
+        started = asyncio.Event()
+
+        async def prepared(symbol):
+            return None
+
+        async def delayed(*args):
+            started.set()
+            await asyncio.Event().wait()
+            return Signal("LONG", "ACCEPTED")
+
+        monkeypatch.setattr(paper, "prepare", prepared)
+        monkeypatch.setattr(paper.automation.strategy, "decide", delayed)
+        paper.automation.task = asyncio.create_task(paper.automation.cycle())
+        await started.wait()
+        await paper.automation.stop()
+
+    asyncio.run(run())
+    assert not paper.automation.enabled and not paper.exchange.orders
