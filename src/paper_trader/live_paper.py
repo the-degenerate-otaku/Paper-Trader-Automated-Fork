@@ -255,6 +255,27 @@ class LivePaper:
             self.restore(previous)
             raise
         messages = []
+        explained = set()
+        if "LOSS_COOLDOWN" in reasons:
+            last_loss = self.exchange.portfolio.last_loss_at
+            if last_loss is not None:
+                resumes = (
+                    last_loss + timedelta(minutes=self.settings.risk.cooldown_minutes)
+                ).astimezone(self.calendar.zone)
+                messages.append(
+                    f"New entries are paused after {self.settings.risk.max_consecutive_losses} "
+                    f"consecutive losses. Entries resume at {resumes:%d %b %Y, %H:%M:%S} IST. "
+                    "Valid reduce-only closing orders remain available with a fresh quote."
+                )
+                explained.add("LOSS_COOLDOWN")
+        if "INVALID_STOP" in reasons:
+            direction = "below" if order.side == "BUY" else "above"
+            messages.append(
+                f"For a {order.side} entry, protective stop must be a positive absolute stock "
+                f"price strictly {direction} the current quote of INR {quote.price:,.2f} "
+                "after tick-size rounding. Use Close on an existing position to exit it."
+            )
+            explained.add("INVALID_STOP")
         if "TRADE_RISK_LIMIT" in reasons and order.stop_price is not None:
             loss = abs(quote.price - order.stop_price) * order.quantity
             budget = max(self.exchange.portfolio.equity, Decimal(0)) * (
@@ -266,6 +287,9 @@ class LivePaper:
                 "Protective stop is an absolute stock price, not a loss amount. "
                 "Reduce quantity or review the stop price. Gaps and charges can increase losses."
             )
+            explained.add("TRADE_RISK_LIMIT")
+        if messages:
+            messages.extend(reason for reason in reasons if reason not in explained)
         return {"id": order.id, "vetoes": reasons, "messages": messages}
 
     def tick(self, data: dict[str, Any]) -> bool:

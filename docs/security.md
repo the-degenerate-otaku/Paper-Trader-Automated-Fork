@@ -1,5 +1,11 @@
 # Security and smoke verification
 
+## Cooldown and stop rejection explanations - 2026-10-21
+
+Manual order rejection responses now explain the configured consecutive-loss cooldown with an exact IST resume timestamp. Invalid-stop messages describe the side-specific absolute-price rule and tick-size rounding. Additional veto codes are retained when a response also has explanatory messages, so one explanation cannot hide another blocker. Existing risk thresholds, account state and entry/exit behavior are unchanged.
+
+New regression cases verify simultaneous cooldown/short-stop explanations, the opposite stop direction for buys, cooldown expiry and preservation of additional vetoes. Targeted live-paper tests passed (13 cases); Ruff, formatting, mypy, Bandit, TypeScript/lint/frontend build, Python/npm dependency audits and all 13 live HTTP security probes passed. The repository/history PII scan found zero new blocking findings. The complete local suite passed all 150 tests. The updated local server restarted successfully and reconnected with all 50 stocks fresh; new-commit GitHub CI has not been observed. These checks are developer-run and do not constitute independent penetration-test certification.
+
 ## Automatic stock refresh and understandable risk rejection - 2026-10-21
 
 Selecting a stock in the connected manual terminal now loads liquidity context automatically, refreshes it at the configured interval, and retries failures. Streaming quotes remain independent. Server-side refresh coalescing avoids repeated provider downloads within that interval. The bounded cache preserves contexts required by positions and pending orders when replacing idle stocks. Manual orders still require fresh quotes, valid closed history and all existing risk checks.

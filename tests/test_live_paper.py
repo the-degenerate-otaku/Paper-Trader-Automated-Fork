@@ -228,6 +228,33 @@ def test_stop_risk_rejection_explains_absolute_price_and_budget(live):
     assert paper.submit(ticket(quantity=20, stop_price="915"))["vetoes"] == []
 
 
+def test_cooldown_and_short_stop_messages_preserve_both_reasons(live):
+    paper, clock = live
+    tick(paper, clock)
+    portfolio = paper.exchange.portfolio
+    portfolio.consecutive_losses = paper.settings.risk.max_consecutive_losses
+    portfolio.last_loss_at = clock[0]
+    result = paper.submit(ticket(side="SELL", product="MIS", stop_price="90"))
+    assert "LOSS_COOLDOWN" in result["vetoes"] and "INVALID_STOP" in result["vetoes"]
+    message = " ".join(result["messages"])
+    assert "11:30:00 IST" in message
+    assert "strictly above" in message
+    assert "reduce-only closing orders remain available" in message
+    assert "INVALID_STOP" not in paper.submit(ticket(stop_price="90"))["vetoes"]
+    assert "strictly below" in " ".join(paper.submit(ticket(stop_price="110"))["messages"])
+    clock[0] += timedelta(minutes=paper.settings.risk.cooldown_minutes)
+    tick(paper, clock)
+    assert "LOSS_COOLDOWN" not in paper.submit(ticket())["vetoes"]
+
+
+def test_explained_rejection_does_not_hide_other_checks(live):
+    paper, clock = live
+    tick(paper, clock)
+    result = paper.submit(ticket(side="SELL", product="CNC", stop_price="90"))
+    assert "CNC_LONG_ONLY" in result["vetoes"]
+    assert "CNC_LONG_ONLY" in result["messages"]
+
+
 def test_automatic_history_coalesces_refresh_and_retries_failures(live, monkeypatch):
     paper, clock = live
     bars = paper.bars["RELIANCE"]
