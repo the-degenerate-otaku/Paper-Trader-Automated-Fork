@@ -2,6 +2,8 @@
 
 ## Nifty 50 live paper portfolio — 2026-10-21
 
+[CI run 39560185388](https://github.com/the-degenerate-otaku/Paper-Trader-Automated-Fork/actions/runs/39560185388) passed on Windows and Linux for source commit f2d8536: 145 tests, locked dependency audits, source/privacy checks, and frontend build including the new paper UI lint gate.
+
 The user narrowed the primary product to a Nifty 50 portfolio and manual buy/sell terminal, with a free source and no broker account. The default UI now shows positions, funds, P&L, orders, closed trades and executions. Historical research is secondary at `/?workspace=research`. The source is Yahoo streaming, explicitly best effort; no direct-NSE feed guarantee, broker API or automatic LLM orders are introduced.
 
 145 tests passed in the final full local suite, including eight live-paper regressions. Tests cover later-quote execution, persisted cash/charges/protective positions/orders, entry/exit and restored state, no fresh-quote bypass after restart, malformed/future/duplicate/out-of-order/decreasing-volume rejection, stale-context vetoes, Nifty membership freshness, protective stops without AI/history, and in-memory rollback on checkpoint-write failure. Stream gaps cannot turn accumulated unseen volume into fill liquidity. Schema 5 uses typed JSON checkpoints plus an event journal; no pickle/eval or user-supplied provider URL is used.
