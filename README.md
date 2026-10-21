@@ -43,7 +43,7 @@ cd ..
 paper-trader serve
 ```
 
-Open http://127.0.0.1:2080. Click **Connect free feed**, open **Trading terminal**, choose a Nifty stock and click **Load stock data**. Review quantity, product and required protective stop, then submit a paper buy/sell. Review Positions, Orders, Closed trades and Executions. An opposite-side order reduces an existing position; the position's Close button prepares an exit for review. Market hours, fresh quotes, available liquidity, funds and risk rules are enforced. Research/demo controls are available separately at `/?workspace=research`. Development Vite serves at 127.0.0.1:3000, explicitly allowed by the local origin configuration.
+Open http://127.0.0.1:2080. Click **Connect free feed**, open **Trading terminal**, choose a Nifty stock; its liquidity context loads and refreshes automatically. Review quantity, product and required protective stop, then submit a paper buy/sell. Review Positions, Orders, Closed trades and Executions. An opposite-side order reduces an existing position; the position's Close button prepares an exit for review. Market hours, fresh quotes, available liquidity, funds and risk rules are enforced. Research/demo controls are available separately at `/?workspace=research`. Development Vite serves at 127.0.0.1:3000, explicitly allowed by the local origin configuration.
 
 The UI includes INR/IST portfolio metrics, candlestick/EMA/VWAP/Bollinger/RSI/MACD charts, paper order ticket with stops/targets/trailing distance, positions/orders, decisions, trade inspection, reports, settings and service health. Watchlist membership is observation-time aware; historical snapshots are not fabricated. Missing market/reference data stays unavailable.
 

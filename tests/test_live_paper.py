@@ -1,5 +1,7 @@
+import asyncio
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
@@ -211,3 +213,72 @@ def test_paper_http_boundary_and_offline_portfolio(settings):
             "ws://127.0.0.1:2080/api/paper/ws", headers={"Origin": "http://127.0.0.1:2080"}
         ) as stream:
             assert stream.receive_json()["orders"] == []
+
+
+def test_stop_risk_rejection_explains_absolute_price_and_budget(live):
+    paper, clock = live
+    tick(paper, clock, price="925")
+    result = paper.submit(ticket(quantity=20, stop_price="10.01"))
+    assert "TRADE_RISK_LIMIT" in result["vetoes"]
+    message = result["messages"][0]
+    assert "18,299.80" in message
+    assert "5,000.00" in message
+    assert "absolute stock price" in message
+    assert paper.exchange.portfolio.positions == {}
+    assert paper.submit(ticket(quantity=20, stop_price="915"))["vetoes"] == []
+
+
+def test_automatic_history_coalesces_refresh_and_retries_failures(live, monkeypatch):
+    paper, clock = live
+    bars = paper.bars["RELIANCE"]
+    calls = []
+
+    def load(*args):
+        calls.append(1)
+        return SimpleNamespace(candles=bars)
+
+    monkeypatch.setattr("paper_trader.live_paper.YFinanceProvider.history", load)
+    monkeypatch.setattr("paper_trader.live_paper.CandleStore.save", lambda *args: None)
+
+    async def refresh():
+        await asyncio.gather(paper.prepare("RELIANCE"), paper.prepare("RELIANCE"))
+        assert len(calls) == 1
+        clock[0] += timedelta(seconds=paper.settings.live_paper.history_poll_seconds)
+        await paper.prepare("RELIANCE")
+        assert len(calls) == 2
+
+    asyncio.run(refresh())
+    clock[0] += timedelta(seconds=paper.settings.live_paper.history_poll_seconds)
+
+    def fail(*args):
+        raise ValueError("private provider failure")
+
+    monkeypatch.setattr("paper_trader.live_paper.YFinanceProvider.history", fail)
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(paper.prepare("RELIANCE"))
+    assert error.value.status_code == 502
+    assert "private" not in str(error.value.detail)
+    monkeypatch.setattr("paper_trader.live_paper.YFinanceProvider.history", load)
+    asyncio.run(paper.prepare("RELIANCE"))
+    assert "RELIANCE" not in paper.errors
+
+
+def test_history_cache_keeps_pending_order_context(live, monkeypatch):
+    paper, clock = live
+    paper.settings.live_paper.max_prepared_symbols = 1
+    bars = paper.bars["RELIANCE"]
+    monkeypatch.setattr(
+        "paper_trader.live_paper.YFinanceProvider.history",
+        lambda *args: SimpleNamespace(candles=bars),
+    )
+    monkeypatch.setattr("paper_trader.live_paper.CandleStore.save", lambda *args: None)
+    tick(paper, clock)
+    identifier = paper.submit(ticket())["id"]
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(paper.prepare("TEST0"))
+    assert error.value.status_code == 409 and "RELIANCE" in paper.bars
+    paper.exchange.cancel(identifier)
+    asyncio.run(paper.prepare("TEST0"))
+    assert set(paper.bars) == {"TEST0"}
+    with pytest.raises(HTTPException):
+        asyncio.run(paper.prepare("OUTSIDE"))

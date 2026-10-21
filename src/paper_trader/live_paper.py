@@ -104,6 +104,7 @@ class LivePaper:
         self.observed_at: datetime | None = None
         self.quotes: dict[str, Quote] = {}
         self.bars: dict[str, tuple[Candle, ...]] = {}
+        self.history_updated: dict[str, datetime] = {}
         self.errors: dict[str, str] = {}
         self.feed = "disconnected"
         self.task: asyncio.Task[None] | None = None
@@ -253,7 +254,19 @@ class LivePaper:
         except Exception:
             self.restore(previous)
             raise
-        return {"id": order.id, "vetoes": reasons}
+        messages = []
+        if "TRADE_RISK_LIMIT" in reasons and order.stop_price is not None:
+            loss = abs(quote.price - order.stop_price) * order.quantity
+            budget = max(self.exchange.portfolio.equity, Decimal(0)) * (
+                self.settings.risk.risk_per_trade_pct / 100
+            )
+            messages.append(
+                f"Estimated loss to your stop is INR {loss:,.2f}; the per-trade allowance is "
+                f"INR {budget:,.2f} ({self.settings.risk.risk_per_trade_pct}% of equity). "
+                "Protective stop is an absolute stock price, not a loss amount. "
+                "Reduce quantity or review the stop price. Gaps and charges can increase losses."
+            )
+        return {"id": order.id, "vetoes": reasons, "messages": messages}
 
     def tick(self, data: dict[str, Any]) -> bool:
         if data.get("currency") not in {None, "INR"}:
@@ -355,15 +368,31 @@ class LivePaper:
             p.symbol == symbol for p in self.exchange.portfolio.positions.values()
         ):
             raise HTTPException(422, "Only Nifty 50 stocks can be prepared")
-        if (
-            symbol not in self.bars
-            and len(self.bars) >= self.settings.live_paper.max_prepared_symbols
-        ):
-            raise HTTPException(409, "Prepared stock limit reached")
-        if self.history_lock.locked():
-            raise HTTPException(409, "Stock data is already loading")
         async with self.history_lock:
             now = self.now()
+            updated = self.history_updated.get(symbol)
+            if updated and (now - updated).total_seconds() < (
+                self.settings.live_paper.history_poll_seconds
+            ):
+                return
+            if (
+                symbol not in self.bars
+                and len(self.bars) >= self.settings.live_paper.max_prepared_symbols
+            ):
+                protected = {p.symbol for p in self.exchange.portfolio.positions.values()} | {
+                    p.order.symbol
+                    for p in self.exchange.orders.values()
+                    if p.status in {"OPEN", "PARTIAL"}
+                }
+                candidates = [s for s in self.bars if s not in protected]
+                if not candidates:
+                    raise HTTPException(
+                        409, "All stock-data slots are needed by positions or orders"
+                    )
+                oldest = min(candidates, key=lambda s: self.history_updated.get(s, now))
+                self.bars.pop(oldest)
+                self.history_updated.pop(oldest, None)
+                self.errors.pop(oldest, None)
 
             def load() -> tuple[Candle, ...]:
                 bounded = self.settings.model_copy(deep=True)
@@ -380,6 +409,7 @@ class LivePaper:
                 bars = await asyncio.to_thread(load)
                 async with self.lock:
                     self.bars[symbol] = tuple(sorted(bars, key=lambda c: c.closed_at))
+                    self.history_updated[symbol] = self.now()
                     self.errors.pop(symbol, None)
             except Exception as exc:
                 self.errors[symbol] = "Liquidity history unavailable"
@@ -496,6 +526,8 @@ class LivePaper:
                     "now": now.isoformat(),
                     "membership_observed_at": self.observed_at,
                     "membership_fresh": self.membership_fresh(),
+                    "risk_per_trade_pct": self.settings.risk.risk_per_trade_pct,
+                    "history_poll_seconds": self.settings.live_paper.history_poll_seconds,
                     "stocks": [
                         {
                             **member,

@@ -1,5 +1,13 @@
 # Security and smoke verification
 
+## Automatic stock refresh and understandable risk rejection - 2026-10-21
+
+Selecting a stock in the connected manual terminal now loads liquidity context automatically, refreshes it at the configured interval, and retries failures. Streaming quotes remain independent. Server-side refresh coalescing avoids repeated provider downloads within that interval. The bounded cache preserves contexts required by positions and pending orders when replacing idle stocks. Manual orders still require fresh quotes, valid closed history and all existing risk checks.
+
+The ticket labels protective stop as an absolute stock price and shows estimated loss to stop versus the configured equity risk budget. Rejected risk-limit responses include a plain-language explanation. Estimates exclude gaps, slippage and charges; thresholds were not relaxed.
+
+148 tests passed locally, including regressions for risk messages, cache coalescing and refresh expiry, sanitized failure retries, and preservation of pending-order context. Ruff, formatting, mypy, Bandit and the production TypeScript/lint/build passed. Python and npm audits found no known vulnerabilities. All 13 live HTTP security probes passed; repository/history scanning found zero new blocking PII or credential findings (inherited public examples remain separately classified). Browser smoke verified automatic data loading on stock selection and the original 20-share low-stop risk warning without submitting another order; all 50 quotes were fresh. These developer checks are not independent penetration-test certification. New-commit GitHub CI has not yet been observed.
+
 ## Nifty 50 live paper portfolio — 2026-10-21
 
 [CI run 39560185388](https://github.com/the-degenerate-otaku/Paper-Trader-Automated-Fork/actions/runs/39560185388) passed on Windows and Linux for source commit f2d8536: 145 tests, locked dependency audits, source/privacy checks, and frontend build including the new paper UI lint gate.

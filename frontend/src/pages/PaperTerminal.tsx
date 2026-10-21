@@ -65,6 +65,8 @@ type State = {
     now: string;
     session: { phase: string; reason: string };
     membership_fresh: boolean;
+    risk_per_trade_pct: string;
+    history_poll_seconds: number;
     stocks: Stock[];
     portfolio: Record<string, string>;
     positions: Position[];
@@ -134,6 +136,32 @@ export default function PaperTerminal() {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
+    const [dataStatus, setDataStatus] = useState("");
+    const feed = state?.feed;
+    const historyPoll = state?.history_poll_seconds ?? 60;
+    useEffect(() => {
+        if (tab !== 1 || feed !== "connected") return;
+        let active = true;
+        let timer: ReturnType<typeof setTimeout>;
+        const refresh = async () => {
+            setDataStatus("Updating stock data…");
+            try {
+                await api(`/prepare/${encodeURIComponent(symbol)}`, {});
+                if (active) setDataStatus("Stock data refreshes automatically");
+            } catch (e) {
+                if (active)
+                    setDataStatus(
+                        `${e instanceof Error ? e.message : "Stock data unavailable"}. Retrying automatically.`,
+                    );
+            }
+            if (active) timer = setTimeout(refresh, historyPoll * 1000);
+        };
+        timer = setTimeout(refresh, 300);
+        return () => {
+            active = false;
+            clearTimeout(timer);
+        };
+    }, [symbol, tab, feed, historyPoll]);
     useEffect(() => {
         let active = true;
         api()
@@ -176,7 +204,9 @@ export default function PaperTerminal() {
             const result = await api(path, body, method);
             if (result.portfolio) setState(result);
             if (result.vetoes?.length)
-                setError(`Order blocked: ${result.vetoes.join(", ")}`);
+                setError(
+                    `Order blocked: ${result.messages?.length ? result.messages.join(" ") : result.vetoes.join(", ")}`,
+                );
             else if (path === "/orders")
                 setNotice(
                     "Paper order accepted. It waits for the next eligible observed price and available simulated liquidity.",
@@ -203,6 +233,14 @@ export default function PaperTerminal() {
         !!current &&
         (reduceOnly ||
             (current.quantity > 0 ? side === "SELL" : side === "BUY"));
+    const riskBudget =
+        (Number(state?.portfolio.equity ?? 0) *
+            Number(state?.risk_per_trade_pct ?? 0)) /
+        100;
+    const estimatedRisk =
+        quote && Number(stop) > 0 && Number(quantity) > 0
+            ? Math.abs(Number(quote.price) - Number(stop)) * Number(quantity)
+            : null;
     const ready =
         connected &&
         state?.feed === "connected" &&
@@ -714,19 +752,17 @@ export default function PaperTerminal() {
                                 >
                                     Sell
                                 </Button>
-                                <Button
-                                    disabled={busy || !stock}
-                                    onClick={() =>
-                                        act(
-                                            `/prepare/${encodeURIComponent(symbol)}`,
-                                        )
-                                    }
-                                >
-                                    {stock?.prepared
-                                        ? "Refresh stock data"
-                                        : "Load stock data"}
-                                </Button>
                             </Stack>
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                display="block"
+                                my={2}
+                            >
+                                {feed === "connected"
+                                    ? dataStatus
+                                    : "Connect the feed to load and refresh stock data automatically."}
+                            </Typography>
                             {stock?.error && (
                                 <Alert severity="warning" sx={{ mb: 2 }}>
                                     {stock.error}
@@ -833,7 +869,8 @@ export default function PaperTerminal() {
                                     <>
                                         <TextField
                                             required
-                                            label="Protective stop"
+                                            label="Protective stop price (₹)"
+                                            helperText="Absolute stock price, not a rupee loss or percentage."
                                             type="number"
                                             slotProps={{
                                                 htmlInput: {
@@ -878,6 +915,25 @@ export default function PaperTerminal() {
                                     </>
                                 )}
                             </Box>
+                            {!isExit && estimatedRisk !== null && (
+                                <Alert
+                                    severity={
+                                        estimatedRisk > riskBudget
+                                            ? "warning"
+                                            : "info"
+                                    }
+                                    sx={{ mt: 2 }}
+                                >
+                                    Estimated loss to stop:{" "}
+                                    {money(estimatedRisk)}. Per-trade allowance:{" "}
+                                    {money(riskBudget)} (
+                                    {state?.risk_per_trade_pct}% of equity).
+                                    {estimatedRisk > riskBudget &&
+                                        " This exceeds the allowance. Reduce quantity or review your stop price."}{" "}
+                                    Based on the current quote; gaps, slippage
+                                    and charges can increase losses.
+                                </Alert>
+                            )}
                             <Typography
                                 variant="body2"
                                 color="text.secondary"
@@ -896,9 +952,10 @@ export default function PaperTerminal() {
                             </Typography>
                             {!ready && (
                                 <Alert severity="warning" sx={{ mb: 2 }}>
-                                    To submit: connect the feed, load stock
-                                    data, and wait for fresh regular-session
-                                    prices while the market is open.
+                                    To submit: connect the feed and wait for
+                                    automatic stock-data loading and fresh
+                                    regular-session prices while the market is
+                                    open.
                                 </Alert>
                             )}
                             <Button
