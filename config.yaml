@@ -2,7 +2,8 @@ mode: paper
 auto_paper:
   cpu_threads: 4
   poll_seconds: 10
-  mover_count: 5
+  mover_count: 50
+  max_hold_minutes: 5
   max_candle_age_seconds: 120
   max_events: 100
 research:
@@ -157,7 +158,7 @@ charges:
     stt_quantum: 1
 risk:
   risk_per_trade_pct: 1
-  max_position_pct: 20
+  max_position_pct: 30
   max_exposure_pct: 90
   max_open_positions: 10
   max_per_sector: 5
@@ -167,8 +168,8 @@ risk:
   max_consecutive_losses: 10
   cooldown_minutes: 1
   min_avg_turnover_inr: 1000000
-  atr_stop_multiple: 1.5
-  reward_risk_ratio: 2
+  atr_stop_multiple: 1
+  reward_risk_ratio: 0.75
   max_trades_per_day: 100
   max_trades_per_symbol: 20
   minimum_trade_gap_minutes: 0

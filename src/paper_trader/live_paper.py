@@ -251,7 +251,14 @@ class LivePaper:
         try:
             self.persist(
                 "order_rejected" if reasons else "order_submitted",
-                {"order": order.model_dump(mode="json"), "vetoes": reasons, "automated": automated},
+                {
+                    "order": order.model_dump(mode="json"),
+                    "vetoes": reasons,
+                    "automated": automated,
+                    "max_hold_minutes": self.settings.auto_paper.max_hold_minutes
+                    if automated and not order.reduce_only
+                    else None,
+                },
             )
         except Exception:
             self.restore(previous)
@@ -354,6 +361,7 @@ class LivePaper:
             for p in self.exchange.orders.values()
         ):
             return True
+        self.automation.time_exit(symbol)
         previous = self.saved().model_copy(deep=True)
         context = self.context(symbol)
         for pending in self.exchange.orders.values():
@@ -478,7 +486,13 @@ class LivePaper:
         async def refresh_history() -> None:
             while True:
                 await asyncio.sleep(self.settings.live_paper.history_poll_seconds)
-                for symbol in list(self.bars):
+                for symbol in sorted(list(self.bars), key=self.automation.priority):
+                    if (
+                        self.automation.enabled
+                        and symbol in self.automation.symbols
+                        and self.automation.priority(symbol)[0] == 2
+                    ):
+                        continue
                     if self.calendar.status(self.now()).phase == "open":
                         try:
                             await self.prepare(symbol)

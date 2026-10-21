@@ -353,13 +353,14 @@ class LivePaperConfig(Section):
     stream_cycle_seconds: int = Field(default=300, ge=30, le=3600)
     history_poll_seconds: int = Field(default=60, ge=30, le=600)
     history_days: int = Field(default=5, ge=2, le=5)
-    max_prepared_symbols: int = Field(default=10, ge=1, le=50)
+    max_prepared_symbols: int = Field(default=50, ge=1, le=50)
 
 
 class AutoPaperConfig(Section):
     cpu_threads: int = Field(default=4, ge=1, le=16)
     poll_seconds: int = Field(default=10, ge=1, le=300)
-    mover_count: int = Field(default=5, ge=1, le=10)
+    mover_count: int = Field(default=50, ge=1, le=50)
+    max_hold_minutes: int = Field(default=5, ge=1, le=60)
     max_candle_age_seconds: int = Field(default=120, ge=60, le=300)
     max_events: int = Field(default=100, ge=10, le=1000)
 

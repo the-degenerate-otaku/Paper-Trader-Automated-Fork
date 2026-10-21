@@ -5,7 +5,7 @@ This is a higher-risk, more permissive configuration requested for observing aut
 | Setting | Previous | Experiment |
 | --- | ---: | ---: |
 | Planned stop risk per trade | 0.5% equity | 1% equity |
-| Maximum position value | 10% equity | 20% equity |
+| Maximum position value | 10% equity | 30% equity |
 | Total exposure cap | 60% equity | 90% equity |
 | Open positions / per sector | 6 / 3 | 10 / 5 |
 | Daily / weekly loss limits | 2% / 5% | 10% / 20% |
@@ -20,6 +20,6 @@ This is a higher-risk, more permissive configuration requested for observing aut
 | Extra blackout days around configured events | 1 | 0 |
 | Model reversal-score ceiling | 0.40 | 0.70 |
 
-Direction score remains at 0.50 and minimum conviction remains LOW. ATR stop distance remains 1.5 ATR, reward/risk ratio remains 2 and sizing buffer remains 25 bps. Existing banned-symbol and explicit same-day event guards remain available. All values live in config.yaml.
+Direction score remains at 0.50 and minimum conviction remains LOW. The active short-duration update uses a 1 ATR stop, a 0.75 reward/risk ratio, and a five-minute exit-request cap for new bot entries. Sizing buffer remains 25 bps. Existing banned-symbol and explicit same-day event guards remain available. All values live in config.yaml.
 
 These limits are maximum allowances, not target allocations or guaranteed losses. Available funds, fees and leverage still constrain fills. Entries still require valid protective prices, fresh regular-session quotes, complete recent closed candles, current Nifty membership and the intraday entry window. Missing or invalid model responses fail closed. Simulated fills require later observed prices and positive observed volume; no historical fills or synthetic liquidity are introduced. Short entries remain MIS-only, with the existing square-off rules. Re-enabling the bot does not reset loss counters, cash, kill-switch state or account history.

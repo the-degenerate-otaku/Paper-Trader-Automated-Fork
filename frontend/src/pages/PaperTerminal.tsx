@@ -67,11 +67,14 @@ type State = {
         model: string;
         model_healthy: boolean;
         latency_ms: number | null;
+        mover_count: number;
+        max_hold_minutes: number;
         events: {
             symbol: string;
             at: string;
             direction: string;
             reason: string;
+            action?: string;
             vetoes: string[];
         }[];
     };
@@ -340,10 +343,15 @@ export default function PaperTerminal() {
                                 Local Laya auto trading · Intraday
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                Watches today's top 5 absolute percentage
-                                movers, including gainers and losers. Uses the
-                                same paper funds and risk limits as manual
-                                trades.
+                                {state?.automation.mover_count === 50
+                                    ? "Scans all 50 Nifty stocks."
+                                    : `Scans the top ${state?.automation.mover_count ?? 5} movers.`}{" "}
+                                Active positions have priority over pending
+                                orders and new entries. Laya may close MIS
+                                positions on a qualifying opposite signal. New
+                                bot entries have a{" "}
+                                {state?.automation.max_hold_minutes ?? 5}-minute
+                                holding cap.
                             </Typography>
                         </Box>
                         <Button
@@ -417,6 +425,7 @@ export default function PaperTerminal() {
                                                 </TableCell>
                                                 <TableCell>
                                                     {[
+                                                        e.action,
                                                         e.reason,
                                                         ...e.vetoes,
                                                     ].join(" · ")}

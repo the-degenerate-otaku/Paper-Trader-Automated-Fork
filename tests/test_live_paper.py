@@ -334,6 +334,7 @@ def seed_movers(paper, clock):
 
 def test_auto_movers_rank_absolute_percent_and_require_all_fresh(live):
     paper, clock = live
+    paper.settings.auto_paper.mover_count = 5
     seed_movers(paper, clock)
     assert paper.automation.movers()[:2] == ["RELIANCE", "TEST0"]
     assert len(paper.automation.movers()) == 5
@@ -426,6 +427,7 @@ def test_auto_closed_candle_once_and_restart_deduplication(live, monkeypatch):
     assert paper.automation.events[-1]["reason"] == "MODEL_NEUTRAL"
     restored = LivePaper(paper.settings, paper.database, lambda: clock[0])
     assert restored.automation.last_bars["RELIANCE"] == calls[0]
+    assert len(restored.automation.events) == len(paper.automation.events)
     assert not restored.automation.enabled
 
 
@@ -474,3 +476,111 @@ def test_auto_stop_during_inference_prevents_late_order(live, monkeypatch):
 
     asyncio.run(run())
     assert not paper.automation.enabled and not paper.exchange.orders
+
+
+def test_full_universe_is_not_blocked_by_one_missing_quote(live):
+    paper, clock = live
+    paper.settings.auto_paper.mover_count = 50
+    seed_movers(paper, clock)
+    paper.quotes.pop("TEST1")
+    assert set(paper.automation.movers()) == set(paper.members)
+    assert len(paper.automation.movers()) == 50
+
+
+def test_active_positions_preempt_candidates_during_scan(live, monkeypatch):
+    paper, clock = live
+    seed_movers(paper, clock)
+    paper.automation.enabled = True
+    paper.settings.auto_paper.mover_count = 50
+    visited = []
+
+    async def review(symbol):
+        visited.append(symbol)
+        if len(visited) == 1:
+            identifier = paper.submit(ticket(product="MIS"))["id"]
+            assert identifier
+            tick(paper, clock, volume=12000, seconds=2)
+
+    monkeypatch.setattr(paper.automation, "review", review)
+    asyncio.run(paper.automation.cycle())
+    assert visited[:2] == ["RELIANCE", "RELIANCE"]
+    assert set(visited) == set(paper.members)
+
+
+def test_opposite_signal_closes_without_reversing_or_bypassing_fills(live):
+    paper, clock = live
+    tick(paper, clock)
+    identifier = paper.submit(ticket(product="MIS"))["id"]
+    tick(paper, clock, volume=12000, seconds=2)
+    paper.automation.enabled = True
+    event = {}
+    asyncio.run(
+        paper.automation.submit("RELIANCE", clock[0], 1.0, False, event, review_entry_id=identifier)
+    )
+    assert event["action"] == "AI_OPPOSITE_EXIT" and event["vetoes"] == []
+    assert paper.exchange.portfolio.positions[("RELIANCE", "MIS")].quantity == 2
+    closing = paper.exchange.orders[event["order_id"]]
+    assert closing.order.reduce_only and closing.order.side == "SELL"
+    tick(paper, clock, volume=14000, seconds=2)
+    assert not paper.exchange.portfolio.positions
+
+
+def test_active_review_sends_position_state_and_queues_opposite_exit(live, monkeypatch):
+    paper, clock = live
+    tick(paper, clock)
+    paper.submit(ticket(product="MIS"))
+    tick(paper, clock, volume=12000, seconds=2)
+    paper.automation.enabled = True
+
+    async def prepare(symbol):
+        return None
+
+    async def decide(snapshot, portfolio):
+        assert "Position:LONG" in snapshot.state
+        paper.automation.strategy.healthy = True
+        return Signal("SHORT", "ACCEPTED")
+
+    monkeypatch.setattr(paper, "prepare", prepare)
+    monkeypatch.setattr(paper.automation.strategy, "decide", decide)
+    asyncio.run(paper.automation.review("RELIANCE"))
+    assert paper.automation.events[-1]["action"] == "AI_OPPOSITE_EXIT"
+    assert any(p.order.reduce_only for p in paper.exchange.orders.values())
+
+
+def test_position_review_cannot_reopen_closed_position(live):
+    paper, clock = live
+    tick(paper, clock)
+    paper.automation.enabled = True
+    event = {}
+    asyncio.run(
+        paper.automation.submit(
+            "RELIANCE", clock[0], 1.0, False, event, review_entry_id="closed-entry"
+        )
+    )
+    assert event["vetoes"] == ["POSITION_CHANGED_DURING_INFERENCE"]
+    assert not paper.exchange.orders
+
+
+def test_new_bot_holding_cap_queues_exit_with_ai_stopped_and_restores(live):
+    paper, clock = live
+    tick(paper, clock)
+    paper.automation.enabled = True
+    event = {}
+    asyncio.run(paper.automation.submit("RELIANCE", clock[0], 1.0, True, event))
+    tick(paper, clock, volume=50000, seconds=2)
+    position = paper.exchange.portfolio.positions[("RELIANCE", "MIS")]
+    identifier = position.entry_order_id
+    restored = LivePaper(paper.settings, paper.database, lambda: clock[0])
+    assert (
+        restored.automation.holding_limits[identifier] == paper.settings.auto_paper.max_hold_minutes
+    )
+    paper.automation.enabled = False
+    clock[0] = position.opened_at + timedelta(minutes=paper.settings.auto_paper.max_hold_minutes)
+    paper.quotes["RELIANCE"].at = clock[0] - timedelta(seconds=1)
+    tick(paper, clock, volume=51000)
+    exits = [p for p in paper.exchange.orders.values() if p.order.reduce_only]
+    assert len(exits) == 1 and exits[0].status == "OPEN"
+    tick(paper, clock, volume=52000, seconds=2)
+    assert exits[0].status == "PARTIAL"
+    tick(paper, clock, volume=100000, seconds=2)
+    assert not paper.exchange.portfolio.positions
