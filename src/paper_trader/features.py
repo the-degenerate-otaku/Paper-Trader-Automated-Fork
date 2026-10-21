@@ -33,6 +33,21 @@ def finite(value: object) -> float | None:
         return None
 
 
+def closed_atr(candles: tuple[Candle, ...], period: int) -> Decimal:
+    if period < 1 or len(candles) < period:
+        return Decimal(0)
+    alpha = Decimal(1) / period
+    average = candles[0].high - candles[0].low
+    for previous, current in zip(candles, candles[1:], strict=False):
+        value = max(
+            current.high - current.low,
+            abs(current.high - previous.close),
+            abs(current.low - previous.close),
+        )
+        average = alpha * value + (1 - alpha) * average
+    return average
+
+
 class FeatureEngine:
     def __init__(self, settings: Settings, calendar: TradingCalendar) -> None:
         self.settings = settings

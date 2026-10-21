@@ -155,6 +155,7 @@ class ChargesConfig(Section):
 
 
 class RiskConfig(Section):
+    max_portfolio_stop_risk_pct: Percent | None = None
     risk_per_trade_pct: Percent
     max_position_pct: Percent
     max_exposure_pct: Percent
@@ -365,6 +366,13 @@ class AutoPaperConfig(Section):
     max_events: int = Field(default=100, ge=10, le=1000)
 
 
+class EntryEconomicsConfig(Section):
+    enabled: bool = False
+    minimum_target_cost_multiple: Decimal = Field(default=Decimal(1), ge=1, allow_inf_nan=False)
+    minimum_net_reward_risk: Decimal = Field(default=Decimal(0), ge=0, allow_inf_nan=False)
+    max_assumed_fills: int = Field(default=32, ge=1, le=100)
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         extra="forbid",
@@ -386,6 +394,7 @@ class Settings(BaseSettings):
     research: ResearchConfig = Field(default_factory=ResearchConfig)
     live_paper: LivePaperConfig = Field(default_factory=LivePaperConfig)
     auto_paper: AutoPaperConfig = Field(default_factory=AutoPaperConfig)
+    entry_economics: EntryEconomicsConfig = Field(default_factory=EntryEconomicsConfig)
     execution: ExecutionConfig
     instrument_rules: dict[str, InstrumentRule]
     charges: list[ChargesConfig] = Field(min_length=1)

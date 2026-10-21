@@ -91,6 +91,7 @@ class AutoPaper:
                         "vetoes",
                         "order_id",
                         "action",
+                        "economics",
                     )
                     if key in event
                 }
@@ -327,6 +328,10 @@ class AutoPaper:
             "reason": "INFERENCE_PENDING",
             "vetoes": [],
             "model": self.strategy.settings.system_one.checkpoint,
+            "model_revision": self.strategy.settings.system_one.checkpoint_revision,
+            "config_hash": paper.config_hash,
+            "feature_schema": "laya-text-v1",
+            "membership_observed_at": paper.observed_at.isoformat() if paper.observed_at else None,
             "candle_hash": hashlib.sha256(
                 "\n".join(c.model_dump_json() for c in bars).encode()
             ).hexdigest(),
@@ -422,6 +427,7 @@ class AutoPaper:
             return
         event["vetoes"] = result["vetoes"]
         event["order_id"] = result["id"]
+        event["economics"] = result.get("economics")
         if not result["vetoes"]:
             identifier = str(result["id"])
             self.order_ids.add(identifier)

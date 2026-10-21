@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -6,6 +7,7 @@ from pydantic import ValidationError
 
 from paper_trader.calendar import TradingCalendar
 from paper_trader.config import InstrumentRule, Settings
+from paper_trader.entry_economics import estimate_entry
 from paper_trader.market import Candle
 from paper_trader.trading import (
     ChargesCalculator,
@@ -19,6 +21,121 @@ from paper_trader.trading import (
 
 D = Decimal
 AT = datetime.fromisoformat("2026-10-19T10:00:00+05:30")
+
+
+@pytest.mark.parametrize(
+    ("side", "stop", "target"), [("BUY", "98", "100.05"), ("SELL", "102", "99.95")]
+)
+def test_entry_economics_blocks_cost_consumed_targets(settings, side, stop, target):
+    settings.entry_economics.enabled = True
+    request = order(side=side, stop_price=stop, target_price=target)
+    risk = RiskEngine(settings, TradingCalendar.load(settings))
+    ctx = replace(context(), atr=D(1))
+    estimate = risk.economics(request, D(100), ctx, AT)
+    assert estimate.net_target_profit_inr < 0
+    assert estimate.break_even_win_rate is None
+    assert "TARGET_CONSUMED_BY_COSTS" in risk.vetoes(request, D(100), Portfolio(D(100000)), AT, ctx)
+
+
+def test_economics_partial_fill_fee_cap_and_bounded_work(settings):
+    ctx = replace(context(), bar_volume=1000, atr=D(1))
+    estimate = estimate_entry(settings, order(quantity=1000), D(100), ctx, AT.date())
+    assert estimate.assumed_fills_per_side == 10
+    assert D(20) < estimate.entry_charges_inr < D(35)
+    assert estimate.net_target_profit_inr > 0
+    assert D(0) < estimate.break_even_win_rate < D(1)
+    with pytest.raises(ValueError, match="fill count exceeds budget"):
+        estimate_entry(settings, order(quantity=1000000000), D(100), ctx, AT.date())
+
+
+def test_zero_cost_estimate_does_not_create_nonfinite_ratio(settings):
+    sim = exchange(settings)
+    settings.entry_economics.enabled = True
+    for schedule in settings.charges:
+        for key in type(schedule).model_fields:
+            if key.endswith("_rate") or key in {"brokerage_cap_inr", "dp_charge_inr"}:
+                setattr(schedule, key, D(0))
+    estimate = sim.risk.economics(order(), D(100), context(), AT)
+    assert estimate.target_cost_inr == 0
+    assert estimate.target_cost_multiple is None
+    assert estimate.net_reward_risk == 5
+    assert sim.submit(order(), D(100), context()) == []
+
+
+def test_cost_gate_revalidates_at_fill_after_price_changes(settings):
+    sim = exchange(settings)
+    settings.entry_economics.enabled = True
+    request = order(target_price="101")
+    assert sim.submit(request, D(100), context()) == []
+    assert sim.process(candle(open="100.95")) == []
+    assert sim.orders[request.id].status == "REJECTED"
+    assert "TARGET_CONSUMED_BY_COSTS" in sim.veto_log[-1]["reasons"]
+
+
+def test_partial_entry_recheck_retains_already_paid_brokerage_cap(settings):
+    request = order(quantity=1000)
+    ctx = replace(context(), atr=D(1))
+    first = estimate_entry(settings, request, D(100), ctx, AT.date(), entry_already_slipped=True)
+    continuing = estimate_entry(
+        settings,
+        request,
+        D(100),
+        ctx,
+        AT.date(),
+        entry_already_slipped=True,
+        previous_entry_turnover=D(100000),
+        previous_entry_brokerage=D(20),
+    )
+    assert first.entry_charges_inr - continuing.entry_charges_inr == D("23.60")
+
+
+def test_portfolio_heat_reserves_pending_entries_and_releases_on_cancel(settings):
+    sim = exchange(settings)
+    settings.risk.max_portfolio_stop_risk_pct = D("0.03")
+    first = order()
+    assert sim.submit(first, D(100), context()) == []
+    assert sim.reserved_stop_risk() == 20
+    second = order(symbol="OTHER")
+    assert "PORTFOLIO_STOP_RISK_LIMIT" in sim.submit(second, D(100), context())
+    sim.cancel(first.id)
+    assert sim.reserved_stop_risk() == 0
+    assert sim.submit(second, D(100), context()) == []
+
+
+def test_heat_partial_fill_does_not_double_count_or_release_unfilled_risk(settings):
+    sim = exchange(settings)
+    settings.risk.max_portfolio_stop_risk_pct = D("0.031")
+    first = order()
+    assert sim.submit(first, D(100), context()) == []
+    sim.process(candle(volume=50))
+    assert sim.orders[first.id].remaining == 5
+    assert sim.reserved_stop_risk() == 10
+    assert sim.submit(order(symbol="OTHER", quantity=5), D(100), context()) == []
+    assert "PORTFOLIO_STOP_RISK_LIMIT" in sim.submit(
+        order(symbol="THIRD", quantity=1), D(100), context()
+    )
+
+
+def test_reductions_bypass_entry_economics_and_heat_limits(settings):
+    sim = exchange(settings)
+    assert sim.submit(order(), D(100), context()) == []
+    sim.process(candle())
+    settings.entry_economics.enabled = True
+    settings.risk.max_portfolio_stop_risk_pct = D(0)
+    reduction = order(side="SELL", reduce_only=True, stop_price=None, target_price=None)
+    assert sim.submit(reduction, D(100), context()) == []
+
+
+def test_economics_missing_liquidity_fails_closed_and_old_pending_heat_is_unknown(settings):
+    sim = exchange(settings)
+    settings.entry_economics.enabled = True
+    assert "ECONOMICS_UNAVAILABLE" in sim.submit(order(), D(100), replace(context(), bar_volume=0))
+    settings.entry_economics.enabled = False
+    first = order()
+    assert sim.submit(first, D(100), context()) == []
+    sim.orders[first.id].reference_price = None
+    settings.risk.max_portfolio_stop_risk_pct = D(1)
+    assert "PORTFOLIO_STOP_RISK_UNKNOWN" in sim.submit(order(symbol="OTHER"), D(100), context())
 
 
 def context() -> RiskContext:

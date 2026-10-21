@@ -74,6 +74,36 @@ def ticket(**values):
     )
 
 
+def test_candidate_cost_report_and_rejected_order_are_persisted(live):
+    paper, clock = live
+    tick(paper, clock)
+    paper.settings.entry_economics.enabled = True
+    result = paper.submit(ticket(product="MIS", stop_price="98", target_price="100.05"))
+    assert "TARGET_CONSUMED_BY_COSTS" in result["vetoes"]
+    assert Decimal(result["economics"]["net_target_profit_inr"]) < 0
+    assert not paper.exchange.orders
+    with paper.database.connect() as connection:
+        payload = connection.execute(
+            "SELECT payload_json FROM live_paper_events WHERE event='order_rejected'"
+        ).fetchone()[0]
+    assert "target_cost_inr" in payload and paper.config_hash in payload
+
+
+def test_risk_budget_reports_open_and_pending_planned_risk_after_restart(live):
+    paper, clock = live
+    tick(paper, clock)
+    paper.settings.risk.max_portfolio_stop_risk_pct = Decimal(1)
+    result = paper.submit(ticket(product="MIS", stop_price="90"))
+    assert not result["vetoes"]
+    assert paper.risk_budget()["pending_stop_risk_inr"] == 20
+    restored = LivePaper(paper.settings, paper.database, lambda: clock[0])
+    assert restored.risk_budget()["pending_stop_risk_inr"] == 20
+    tick(paper, clock, volume=12000, seconds=2)
+    report = paper.risk_budget()
+    assert report["open_stop_risk_inr"] > 0
+    assert report["pending_stop_risk_inr"] == 0
+
+
 def test_observed_quote_entry_exit_and_restart_keep_cash_and_orders(live, settings, database):
     paper, clock = live
     assert tick(paper, clock)

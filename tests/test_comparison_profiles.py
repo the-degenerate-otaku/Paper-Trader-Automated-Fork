@@ -90,5 +90,10 @@ def test_profile_init_and_api_smoke_use_only_an_independent_account(launcher, na
         assert snapshot["positions"] == []
         assert snapshot["orders"] == []
         assert snapshot["automation"]["enabled"] is False
+        assert snapshot["risk_budget"]["cost_gate_enabled"] is (name == "research-balanced")
+        assert snapshot["risk_budget"]["pending_stop_risk_inr"] == "0"
+        assert snapshot["risk_budget"]["stop_risk_limit_inr"] == (
+            "15000.0" if name == "research-balanced" else None
+        )
         assert snapshot["portfolio"]["equity"] == str(settings.account.starting_capital_inr)
     assert not (launcher.ROOT / "data/paper-trader.sqlite3").exists()

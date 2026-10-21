@@ -14,6 +14,8 @@ The current live path downloads one-minute stock history. Its FeatureEngine call
 
 ## Prioritized feature list
 
+Implementation progress is tracked in [research phase 1](research-phase-1.md): candidate-only cost checks and aggregate planned stop risk are implemented first. The table below retains the original assessment and dependencies; it is not a claim that every proposed feature has shipped.
+
 | Priority | Feature | Concrete behavior | Current status and dependency |
 | --- | --- | --- | --- |
 | 1 | Cost-aware entry check | Estimate entry and exit charges plus slippage for actual share quantity; reject targets whose plausible payoff is consumed by costs. Show cost/risk and break-even win-rate estimates. | Charges and slippage exist during execution; an explicit pre-entry economic gate is new. Estimate costs separately at target and stop, and account for partial fills. |

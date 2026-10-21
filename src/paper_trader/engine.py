@@ -16,7 +16,7 @@ import numpy as np
 from paper_trader.calendar import TradingCalendar
 from paper_trader.config import Settings
 from paper_trader.data import quality
-from paper_trader.features import FeatureEngine, FeatureSnapshot
+from paper_trader.features import FeatureEngine, FeatureSnapshot, closed_atr
 from paper_trader.market import Candle, aware
 from paper_trader.storage import Database
 from paper_trader.trading import Fill, Order, PaperExchange, Portfolio, RiskContext
@@ -180,6 +180,9 @@ class ReplayEngine:
                     correlations[position.symbol] = float(np.corrcoef(ar, br)[0, 1])
         return RiskContext(
             sector=sector,
+            atr=closed_atr(bars, self.settings.features.atr_period)
+            if self.settings.entry_economics.enabled
+            else Decimal(0),
             instrument_type=kind,
             average_turnover=turnover,
             bar_volume=bars[-1].volume,

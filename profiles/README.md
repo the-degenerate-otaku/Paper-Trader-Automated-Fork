@@ -19,6 +19,8 @@ These are parameter hypotheses, not trained models or validated profitable strat
 | Symbol scope | All 50, active positions first | Same |
 | Live candle timeframe | 1m | 1m; 5m integration is future work |
 | Model weights / temperature | Existing checkpoint / 1 | Unchanged; not calibrated |
+| Cost-aware entry and fill check | Disabled | Enabled; gross target must exceed estimated costs |
+| Aggregate planned stop risk, open plus pending | No additional cap | 1.5% of current paper equity |
 | Port | 2081 | 2082 |
 | Ledger basename | comparison-baseline.sqlite3 | comparison-research-balanced.sqlite3 |
 
@@ -44,4 +46,4 @@ On Linux use .venv/bin/python. The guard validates the full settings schema, exp
 
 Open http://127.0.0.1:2082. For baseline use baseline in both commands and port 2081. Initialization is offline. Connect prices and explicitly enable AI entries if running a forward paper experiment. The local Laya server must still be available at its configured loopback endpoint. The ordinary app remains on 2080. No cash, holdings or completed trades are copied between accounts. Keep the comparison databases private and backed up.
 
-Compare profiles on identical recorded data before attributing an improvement to these settings. Running them on different sessions or concurrently against one CPU inference process is not a controlled comparison. This profile does not implement paid data, 5m resampling, strategy meta-gating, new features or model training. Those require separate, reviewed implementation.
+Compare profiles on identical recorded data before attributing an improvement to these settings. Running them on different sessions or concurrently against one CPU inference process is not a controlled comparison. [Research phase 1](../docs/research-phase-1.md) implements cost screening and aggregate planned stop-risk budgeting. Paid data, 5m resampling, setup meta-gating, RVOL, recording/replay extensions and model training are future phases.

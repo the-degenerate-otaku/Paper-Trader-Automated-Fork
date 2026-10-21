@@ -50,6 +50,12 @@ def main(argv: list[str] | None = None) -> int:
                         "reward_risk_ratio": str(settings.risk.reward_risk_ratio),
                         "max_trades_per_day": settings.risk.max_trades_per_day,
                         "max_hold_minutes": settings.auto_paper.max_hold_minutes,
+                        "cost_gate_enabled": settings.entry_economics.enabled,
+                        "max_portfolio_stop_risk_pct": str(
+                            settings.risk.max_portfolio_stop_risk_pct
+                        )
+                        if settings.risk.max_portfolio_stop_risk_pct is not None
+                        else None,
                         "direction_score_min": settings.system_one.min_direction_prob,
                         "model_retrained": False,
                         "automatically_activated": False,

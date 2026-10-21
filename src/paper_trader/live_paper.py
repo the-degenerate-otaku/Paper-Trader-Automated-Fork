@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import importlib
 import json
 from collections import defaultdict
@@ -21,6 +22,7 @@ from paper_trader.auto_paper import AutoPaper
 from paper_trader.calendar import TradingCalendar
 from paper_trader.config import Section, Settings
 from paper_trader.data import CandleStore, YFinanceProvider, quality
+from paper_trader.features import closed_atr
 from paper_trader.market import Candle, aware
 from paper_trader.storage import Database
 from paper_trader.trading import (
@@ -31,6 +33,7 @@ from paper_trader.trading import (
     Portfolio,
     Position,
     RiskContext,
+    portfolio_stop_risk,
 )
 from paper_trader.universe import UniverseService, utc_iso
 
@@ -120,6 +123,10 @@ class LivePaper:
             self.restore(SavedPaper.model_validate_json(row[0]))
         self.automation = AutoPaper(self)
 
+    @property
+    def config_hash(self) -> str:
+        return hashlib.sha256(self.settings.model_dump_json().encode()).hexdigest()
+
     def membership(self) -> None:
         with self.database.connect() as connection:
             row = connection.execute(
@@ -200,7 +207,7 @@ class LivePaper:
         )
 
     def context(self, symbol: str) -> RiskContext:
-        bars = self.bars.get(symbol, ())
+        bars = tuple(c for c in self.bars.get(symbol, ()) if c.closed_at <= self.now())
         totals: dict[date, Decimal] = defaultdict(Decimal)
         today = self.now().astimezone(self.calendar.zone).date()
         for bar in bars:
@@ -218,6 +225,9 @@ class LivePaper:
                 if np.std(ar) > 0 and np.std(br) > 0:
                     correlations[position.symbol] = float(np.corrcoef(ar, br)[0, 1])
         return RiskContext(
+            atr=closed_atr(bars, self.settings.features.atr_period)
+            if self.settings.entry_economics.enabled
+            else Decimal(0),
             sector=str(self.members.get(symbol, {}).get("sector", "UNKNOWN")),
             average_turnover=sum(totals.values(), Decimal(0)) / len(totals) if totals else None,
             bar_volume=bars[-1].volume if bars else 0,
@@ -248,6 +258,14 @@ class LivePaper:
         )
         previous = self.saved().model_copy(deep=True)
         reasons = self.exchange.submit(order, quote.price, context)
+        economics = None
+        if self.settings.entry_economics.enabled and not order.reduce_only:
+            try:
+                economics = self.exchange.risk.economics(
+                    order, quote.price, context, order.signal_at
+                ).payload()
+            except ValueError:
+                pass
         try:
             self.persist(
                 "order_rejected" if reasons else "order_submitted",
@@ -255,6 +273,8 @@ class LivePaper:
                     "order": order.model_dump(mode="json"),
                     "vetoes": reasons,
                     "automated": automated,
+                    "economics": economics,
+                    "config_hash": self.config_hash,
                     "max_hold_minutes": self.settings.auto_paper.max_hold_minutes
                     if automated and not order.reduce_only
                     else None,
@@ -265,6 +285,21 @@ class LivePaper:
             raise
         messages = []
         explained = set()
+        if "TARGET_CONSUMED_BY_COSTS" in reasons:
+            messages.append(
+                "The planned target does not cover the required estimated round-trip costs."
+            )
+            explained.add("TARGET_CONSUMED_BY_COSTS")
+        if "PORTFOLIO_STOP_RISK_LIMIT" in reasons:
+            messages.append(
+                "Open positions and queued entries already consume the planned stop-risk budget."
+            )
+            explained.add("PORTFOLIO_STOP_RISK_LIMIT")
+        if "ECONOMICS_UNAVAILABLE" in reasons:
+            messages.append(
+                "Cost screening needs a valid target, stop, ATR and sufficient observed liquidity."
+            )
+            explained.add("ECONOMICS_UNAVAILABLE")
         if "LOSS_COOLDOWN" in reasons:
             last_loss = self.exchange.portfolio.last_loss_at
             if last_loss is not None:
@@ -299,7 +334,7 @@ class LivePaper:
             explained.add("TRADE_RISK_LIMIT")
         if messages:
             messages.extend(reason for reason in reasons if reason not in explained)
-        return {"id": order.id, "vetoes": reasons, "messages": messages}
+        return {"id": order.id, "vetoes": reasons, "messages": messages, "economics": economics}
 
     def tick(self, data: dict[str, Any]) -> bool:
         if data.get("currency") not in {None, "INR"}:
@@ -569,6 +604,7 @@ class LivePaper:
                     "membership_observed_at": self.observed_at,
                     "membership_fresh": self.membership_fresh(),
                     "risk_per_trade_pct": self.settings.risk.risk_per_trade_pct,
+                    "risk_budget": self.risk_budget(),
                     "history_poll_seconds": self.settings.live_paper.history_poll_seconds,
                     "stocks": [
                         {
@@ -612,6 +648,35 @@ class LivePaper:
                 custom_encoder={Decimal: str},
             ),
         )
+
+    def risk_budget(self) -> dict[str, object]:
+        p = self.exchange.portfolio
+        opened = portfolio_stop_risk(p)
+        reserved = self.exchange.reserved_stop_risk()
+        percent = self.settings.risk.max_portfolio_stop_risk_pct
+        limit = max(p.equity, Decimal(0)) * percent / 100 if percent is not None else None
+        today = self.now().astimezone(self.calendar.zone).date()
+        entries = sum(
+            t.astimezone(self.calendar.zone).date() == today
+            for times in p.entry_times.values()
+            for t in times
+        )
+        sectors: dict[str, Decimal] = defaultdict(Decimal)
+        for position in p.positions.values():
+            sectors[position.sector] += max(
+                Decimal(0), (position.average_price - position.stop_price) * position.quantity
+            )
+        return {
+            "open_stop_risk_inr": opened,
+            "pending_stop_risk_inr": reserved,
+            "stop_risk_limit_inr": limit,
+            "remaining_stop_risk_inr": max(Decimal(0), limit - opened - reserved)
+            if limit is not None and reserved is not None
+            else None,
+            "sector_stop_risk_inr": dict(sectors),
+            "remaining_daily_entries": max(0, self.settings.risk.max_trades_per_day - entries),
+            "cost_gate_enabled": self.settings.entry_economics.enabled,
+        }
 
 
 def install_live_paper(app: FastAPI, paper: LivePaper) -> None:

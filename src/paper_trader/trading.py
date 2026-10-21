@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta
 from decimal import ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_UP, Decimal
 from typing import Literal, Self
@@ -10,6 +10,7 @@ from pydantic import Field, field_validator, model_validator
 
 from paper_trader.calendar import TradingCalendar
 from paper_trader.config import ChargesConfig, InstrumentRule, Section, Settings
+from paper_trader.entry_economics import EntryEconomics, estimate_entry
 from paper_trader.market import Candle, aware
 
 Product = Literal["MIS", "CNC"]
@@ -318,6 +319,17 @@ class RiskContext:
     correlations: dict[str, float] = field(default_factory=dict)
     expiry_blackout: bool = False
     feed_healthy: bool = True
+    atr: Decimal = Decimal(0)
+
+
+def portfolio_stop_risk(portfolio: Portfolio) -> Decimal:
+    return sum(
+        (
+            max(Decimal(0), (p.average_price - p.stop_price) * p.quantity)
+            for p in portfolio.positions.values()
+        ),
+        Decimal(0),
+    )
 
 
 class RiskEngine:
@@ -344,7 +356,18 @@ class RiskEngine:
         )
 
     def vetoes(
-        self, order: Order, price: Decimal, portfolio: Portfolio, at: datetime, context: RiskContext
+        self,
+        order: Order,
+        price: Decimal,
+        portfolio: Portfolio,
+        at: datetime,
+        context: RiskContext,
+        *,
+        reserved_stop_risk: Decimal | None = Decimal(0),
+        reserved_quantity: int | None = None,
+        entry_already_slipped: bool = False,
+        entry_turnover: Decimal = Decimal(0),
+        entry_brokerage: Decimal = Decimal(0),
     ) -> list[str]:
         if not price.is_finite() or price <= 0:
             return ["INVALID_PRICE"]
@@ -428,6 +451,42 @@ class RiskEngine:
             or (order.side == "SELL" and order.target_price >= price)
         ):
             reasons.append("INVALID_TARGET")
+        if cfg.max_portfolio_stop_risk_pct is not None:
+            if reserved_stop_risk is None or order.stop_price is None:
+                reasons.append("PORTFOLIO_STOP_RISK_UNKNOWN")
+            else:
+                added_risk = abs(price - order.stop_price) * (
+                    reserved_quantity if reserved_quantity is not None else order.quantity
+                )
+                if (
+                    portfolio_stop_risk(portfolio) + reserved_stop_risk + added_risk
+                    > equity * cfg.max_portfolio_stop_risk_pct / 100
+                ):
+                    reasons.append("PORTFOLIO_STOP_RISK_LIMIT")
+        if self.settings.entry_economics.enabled:
+            try:
+                economics = self.economics(
+                    order,
+                    price,
+                    context,
+                    at,
+                    entry_already_slipped,
+                    entry_turnover,
+                    entry_brokerage,
+                )
+            except ValueError:
+                reasons.append("ECONOMICS_UNAVAILABLE")
+            else:
+                gate = self.settings.entry_economics
+                if economics.net_target_profit_inr <= 0 or (
+                    economics.target_cost_multiple is not None
+                    and economics.target_cost_multiple < gate.minimum_target_cost_multiple
+                ):
+                    reasons.append("TARGET_CONSUMED_BY_COSTS")
+                if economics.net_reward_risk is None or (
+                    economics.net_reward_risk < gate.minimum_net_reward_risk
+                ):
+                    reasons.append("NET_REWARD_RISK_LIMIT")
         leverage = rule.mis_leverage or self.settings.execution.mis_leverage
         margin = notional if order.product == "CNC" else notional / leverage
         fees = (
@@ -481,6 +540,27 @@ class RiskEngine:
             reasons.append("EVENT_BLACKOUT")
         return reasons
 
+    def economics(
+        self,
+        order: Order,
+        price: Decimal,
+        context: RiskContext,
+        at: datetime,
+        entry_already_slipped: bool = False,
+        entry_turnover: Decimal = Decimal(0),
+        entry_brokerage: Decimal = Decimal(0),
+    ) -> EntryEconomics:
+        return estimate_entry(
+            self.settings,
+            order,
+            price,
+            context,
+            at.astimezone(self.calendar.zone).date(),
+            entry_already_slipped=entry_already_slipped,
+            previous_entry_turnover=entry_turnover,
+            previous_entry_brokerage=entry_brokerage,
+        )
+
 
 @dataclass
 class PendingOrder:
@@ -491,6 +571,7 @@ class PendingOrder:
     turnover: Decimal = Decimal(0)
     brokerage: Decimal = Decimal(0)
     triggered: bool = False
+    reference_price: Decimal | None = None
 
 
 class PaperExchange:
@@ -503,6 +584,20 @@ class PaperExchange:
         self.orders: dict[str, PendingOrder] = {}
         self.veto_log: list[dict[str, object]] = []
         self.dp_days: set[tuple[str, date]] = set()
+
+    def reserved_stop_risk(self, excluding: str | None = None) -> Decimal | None:
+        total = Decimal(0)
+        for pending in self.orders.values():
+            if (
+                pending.order.id == excluding
+                or pending.order.reduce_only
+                or pending.status not in {"OPEN", "PARTIAL"}
+            ):
+                continue
+            if pending.reference_price is None or pending.order.stop_price is None:
+                return None
+            total += abs(pending.reference_price - pending.order.stop_price) * pending.remaining
+        return total
 
     def submit(self, order: Order, price: Decimal, context: RiskContext) -> list[str]:
         if order.id in self.orders:
@@ -534,7 +629,14 @@ class PaperExchange:
                     order.trailing_distance,
                 )
             )
-            else self.risk.vetoes(order, price, self.portfolio, order.signal_at, context)
+            else self.risk.vetoes(
+                order,
+                price,
+                self.portfolio,
+                order.signal_at,
+                context,
+                reserved_stop_risk=self.reserved_stop_risk(order.id),
+            )
         )
         if any(
             p.status in {"OPEN", "PARTIAL"}
@@ -553,7 +655,7 @@ class PaperExchange:
                 }
             )
             return reasons
-        self.orders[order.id] = PendingOrder(order, context, order.quantity)
+        self.orders[order.id] = PendingOrder(order, context, order.quantity, reference_price=price)
         return []
 
     def cancel(self, order_id: str) -> None:
@@ -624,8 +726,24 @@ class PaperExchange:
                     else max(price, tick_round(order.limit_price, tick, "BUY"))
                 )
             effective = order.model_copy(update={"quantity": quantity})
+            fill_context = pending.context
+            if self.settings.entry_economics.enabled:
+                fill_context = replace(
+                    pending.context,
+                    bar_volume=candle.volume,
+                    atr=atr if atr > 0 else pending.context.atr,
+                )
             reasons = self.risk.vetoes(
-                effective, price, self.portfolio, candle.opened_at, pending.context
+                effective,
+                price,
+                self.portfolio,
+                candle.opened_at,
+                fill_context,
+                reserved_stop_risk=self.reserved_stop_risk(order.id),
+                reserved_quantity=pending.remaining,
+                entry_already_slipped=True,
+                entry_turnover=pending.turnover,
+                entry_brokerage=pending.brokerage,
             )
             if reasons:
                 pending.status = "REJECTED"

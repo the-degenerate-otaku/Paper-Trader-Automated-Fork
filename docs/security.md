@@ -1,5 +1,15 @@
 # Security and smoke verification
 
+## Research phase 1 - 2026-10-21
+
+The interrupted partial patch was discarded from the clean comparison commit and rebuilt. The new entry economics gate runs in the shared risk engine at submission and fill time. Both long and short target/stop paths include dated charges, slippage, tick rounding, volume/ATR buffers and a bounded partial-fill model. The candidate's optional portfolio stop-risk cap includes queued entries, retains unfilled risk through partial fills, releases cancelled risk and fails closed for unknown legacy reservations. Reduce-only exits bypass the entry-only checks. Default and baseline gates remain disabled. No active database, model weights or main branch was changed.
+
+Economic diagnostics, configuration fingerprints and model/schema/membership provenance persist with local events. The estimates and planned heat are not maximum-loss guarantees. Actual future fills and net performance are unverified. The current frontend is unchanged; API diagnostics and candidate-profile smoke cover this phase.
+
+Final verification: 184 tests passed, including long/short cost vetoes, zero-cost finite outputs, bounded fill estimates, cumulative brokerage caps, repricing at fill time, pending-risk reservations, partial-fill accounting, cancellation, unknown legacy reservations, reduction availability, restart persistence and isolated baseline/candidate API smoke. The API smoke confirms the candidate enables cost screening and a 1.5% planned-risk cap while the baseline leaves both disabled. A preceding run passed 183 tests; the final run includes the additional continuing-brokerage test and final preservation refinements. TestClient reports an existing httpx deprecation warning.
+
+Ruff lint/format, strict mypy, Bandit and both profile check commands passed. Python and npm advisory audits reported no known vulnerabilities; the editable application is covered by source checks, not a published dependency advisory. TypeScript, frontend ESLint and the production build passed; the existing research chunk-size advisory remains. Privacy/history scanning examined 3,236 file versions and found no blocking credentials or new PII; inherited public examples and attribution remain separately counted. These are scoped developer-run adversarial tests and smoke checks, not independent penetration-test certification. No new market feed, model training, forward performance comparison or remote CI result is claimed.
+
 ## Research review and isolated comparison profiles - 2026-10-21
 
 The user requested independent assessment of two supplied Gemini research documents, then chose separate comparison profiles before integration into main. Work is on codex/research-comparison. The original PDFs and extracted text remain outside this repository. The review separates existing functionality from proposed features, checks relevant primary sources, flags unsupported performance/parameter claims and records the model-training limitations.

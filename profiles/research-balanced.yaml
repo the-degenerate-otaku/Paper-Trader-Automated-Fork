@@ -1,4 +1,9 @@
 mode: paper
+entry_economics:
+  enabled: true
+  minimum_target_cost_multiple: 1
+  minimum_net_reward_risk: 0
+  max_assumed_fills: 32
 auto_paper:
   cpu_threads: 4
   poll_seconds: 10
@@ -182,6 +187,7 @@ charges:
   money_quantum: 0.01
   stt_quantum: 1
 risk:
+  max_portfolio_stop_risk_pct: 1.5
   risk_per_trade_pct: 0.5
   max_position_pct: 15
   max_exposure_pct: 45
