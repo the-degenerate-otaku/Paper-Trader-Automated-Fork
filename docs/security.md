@@ -1,5 +1,11 @@
 # Security and smoke verification
 
+## Requested direction threshold experiment - 2026-10-21
+
+Changed only system_one.min_direction_prob from 0.65 to 0.5 at the user request for a paper-trading experiment. Conviction, reversal-risk, stop, funds, session, exposure and other risk gates remain unchanged. This is a model-score threshold, not a calibrated trade win probability.
+
+All 28 inference/live-paper tests passed. Ruff, mypy and source/launcher Bandit passed. Application and normalized inference dependency audits and npm audit found no known vulnerabilities. Repository/history scanning found no new blocking PII or credentials, and all 13 live HTTP security probes passed. The server was restarted, its settings API confirmed 0.5, and the live feed and AI bot were re-enabled after source connectivity was ready. Existing positions and account history were preserved. This does not force entries or establish trading performance.
+
 ## Local Laya top-mover MIS automation - 2026-10-21
 
 The primary manual account now supports opt-in local Laya AI entries for the five largest absolute percentage movers in the observed Nifty 50 universe. Ranking requires all 50 current regular-session quotes and percentage changes. Closed one-minute candles, a complete warmup window and a configured maximum age gate inference; duplicate and future candles cannot create repeated or lookahead decisions. ATR sizing and protective prices pass through existing deterministic funds, liquidity, session, cooldown and risk checks. Model unavailability fails closed. No broker transport or cloud inference was added.
