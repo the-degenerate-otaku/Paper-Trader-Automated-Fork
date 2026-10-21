@@ -12,7 +12,7 @@ Paper positions, balances, orders and completed trades persist across restart. P
 
 The earlier milestone 1–9 research tools remain at `/?workspace=research`: historical charts, replay/backtest, bot arena and calibration. In-memory research runs are not automatically resumed. Local inference verification is recorded in docs/security.md. Optional milestone 10 is outside current scope.
 
-The React/MUI portfolio and positions components are connected to the NSE backend. Old backend/tests/scripts and launch/Docker files under upstream_reference are excluded from the installed package. No broker credentials are needed. [Milestone 9 CI](https://github.com/the-degenerate-otaku/Paper-Trader-Automated-Fork/actions/runs/39457905629) passed tests, static analysis, dependency/privacy checks and the production frontend build on Windows and Linux. Inherited greeting/label/release/stale automations are disabled.
+The primary React workspace uses the visual system in [DESIGN.md](DESIGN.md): a cardless portfolio, compact automation controls, a separate decision journal, responsive order forms and scrollable trade tables. Research tools retain their existing MUI theme and load on demand. Old backend/tests/scripts and launch/Docker files under upstream_reference are excluded from the installed package. No broker credentials are needed. [Milestone 9 CI](https://github.com/the-degenerate-otaku/Paper-Trader-Automated-Fork/actions/runs/39457905629) passed tests, static analysis, dependency/privacy checks and the production frontend build on Windows and Linux. Inherited greeting/label/release/stale automations are disabled.
 
 ## CLI setup
 

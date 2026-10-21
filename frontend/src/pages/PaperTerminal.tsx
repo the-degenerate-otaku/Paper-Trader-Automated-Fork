@@ -1,26 +1,12 @@
 import { useEffect, useState } from "react";
 import {
-    Alert,
-    AppBar,
-    Box,
-    Button,
-    Chip,
-    Container,
-    MenuItem,
-    Paper,
-    Stack,
-    Tab,
-    Tabs,
-    Table,
-    TableBody,
-    TableCell,
-    TableContainer,
-    TableHead,
-    TableRow,
-    TextField,
-    Toolbar,
-    Typography,
-} from "@mui/material";
+    ChartNoAxesCombined,
+    ArrowUpRight,
+    Play,
+    Square,
+    Radio,
+    Search,
+} from "lucide-react";
 
 type Quote = { price: string; at: string; change_percent: number | null };
 type Stock = {
@@ -108,16 +94,18 @@ type State = {
     }[];
 };
 const money = (value: unknown) =>
-    Number(value ?? 0).toLocaleString("en-IN", {
-        style: "currency",
-        currency: "INR",
-    });
+    value === undefined || value === null
+        ? "—"
+        : Number(value).toLocaleString("en-IN", {
+              style: "currency",
+              currency: "INR",
+          });
 const when = (value: string) =>
     new Date(value).toLocaleString("en-IN", {
         timeZone: "Asia/Kolkata",
         hour12: false,
     });
-const tint = (value: unknown) => (Number(value) >= 0 ? "#77dfb5" : "#fa8c99");
+const readable = (value: string) => value.replaceAll("_", " ").toLowerCase();
 
 async function api(path = "", body?: unknown, method?: string) {
     const response = await fetch(`/api/paper${path}`, {
@@ -152,6 +140,7 @@ export default function PaperTerminal() {
     const [trailing, setTrailing] = useState("");
     const [reduceOnly, setReduceOnly] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [showAllDecisions, setShowAllDecisions] = useState(false);
     const [error, setError] = useState("");
     const [notice, setNotice] = useState("");
     const [dataStatus, setDataStatus] = useState("");
@@ -277,44 +266,29 @@ export default function PaperTerminal() {
         setError("");
         setNotice("Review the closing paper order, then submit.");
     }
+    const tabs = [
+        "Positions",
+        "Trading terminal",
+        "Orders",
+        "Closed trades",
+        "Executions",
+    ];
     return (
-        <>
-            <AppBar
-                position="static"
-                color="transparent"
-                elevation={0}
-                sx={{ borderBottom: "1px solid #253243" }}
-            >
-                <Toolbar sx={{ gap: 2, flexWrap: "wrap", py: 1 }}>
-                    <Box sx={{ flex: 1 }}>
-                        <Typography variant="h6" fontWeight={700}>
-                            Paper Trader{" "}
-                            <Box component="span" color="primary.main">
-                                Automated
-                            </Box>
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                            NIFTY 50 · VIRTUAL MONEY · PAPER TRADING
-                        </Typography>
-                    </Box>
-                    <Chip
-                        label="PAPER ONLY"
-                        color="primary"
-                        variant="outlined"
-                    />
-                    <Chip
-                        size="small"
-                        label={state?.session.phase ?? "Loading"}
-                    />
-                    <Chip
-                        size="small"
-                        label={`Feed: ${state?.feed ?? "offline"}`}
-                        color={
-                            state?.feed === "connected" ? "success" : "warning"
-                        }
-                    />
-                    <Button
-                        variant="contained"
+        <div className="paper-app">
+            <a className="skip-link" href="#workspace">
+                Skip to workspace
+            </a>
+            <header className="topbar">
+                <a className="brand" href="/">
+                    <ChartNoAxesCombined aria-hidden="true" size={28} />
+                    <span>
+                        Paper Trader
+                        <span className="brand-sub">Automated · NSE</span>
+                    </span>
+                </a>
+                <div className="header-actions">
+                    <span className="paper-label">Paper account</span>
+                    <button
                         disabled={busy || state?.feed === "connecting"}
                         onClick={() =>
                             act(
@@ -324,43 +298,72 @@ export default function PaperTerminal() {
                             )
                         }
                     >
+                        <Radio size={16} aria-hidden="true" />
                         {state?.feed === "connected"
                             ? "Disconnect feed"
                             : "Connect free feed"}
-                    </Button>
-                </Toolbar>
-            </AppBar>
-            <Container maxWidth="xl" sx={{ py: 3 }}>
-                <Paper sx={{ p: 2, mb: 3 }}>
-                    <Stack
-                        direction="row"
-                        gap={2}
-                        alignItems="center"
-                        flexWrap="wrap"
+                    </button>
+                </div>
+            </header>
+            <div className="market-line">
+                <span
+                    className={connected ? "connection online" : "connection"}
+                >
+                    {connected ? "Service connected" : "Service disconnected"}
+                </span>
+                <span>Market {state?.session.phase ?? "loading"}</span>
+                <span>Feed {state?.feed ?? "offline"}</span>
+                <time>
+                    {state?.now
+                        ? when(state.now) + " IST"
+                        : "Waiting for market data"}
+                </time>
+            </div>
+            <main>
+                <section
+                    className="overview"
+                    aria-labelledby="portfolio-heading"
+                >
+                    <div className="account">
+                        <div className="section-heading">
+                            <h1 id="portfolio-heading">Your portfolio</h1>
+                            <span>Nifty 50</span>
+                        </div>
+                        <p className="muted">Portfolio equity</p>
+                        <div className="equity">
+                            {money(state?.portfolio.equity)}
+                        </div>
+                        <dl className="metrics">
+                            {[
+                                ["Available funds", "available_cash"],
+                                ["Open P&L", "unrealized_pnl"],
+                                ["Realized P&L", "realized_pnl"],
+                            ].map(([label, key]) => (
+                                <div key={key}>
+                                    <dt>{label}</dt>
+                                    <dd>{money(state?.portfolio[key])}</dd>
+                                </div>
+                            ))}
+                        </dl>
+                    </div>
+                    <section
+                        className="automation"
+                        aria-labelledby="automation-heading"
                     >
-                        <Box sx={{ flex: 1 }}>
-                            <Typography variant="h6">
-                                Local Laya auto trading · Intraday
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                {state?.automation.mover_count === 50
-                                    ? "Scans all 50 Nifty stocks."
-                                    : `Scans the top ${state?.automation.mover_count ?? 5} movers.`}{" "}
-                                Active positions have priority over pending
-                                orders and new entries. Laya may close MIS
-                                positions on a qualifying opposite signal. New
-                                bot entries have a{" "}
-                                {state?.automation.max_hold_minutes ?? 5}-minute
-                                holding cap.
-                            </Typography>
-                        </Box>
-                        <Button
-                            variant="contained"
-                            color={
-                                state?.automation.enabled
-                                    ? "warning"
-                                    : "primary"
-                            }
+                        <div className="section-heading">
+                            <h2 id="automation-heading">Laya automation</h2>
+                            <span>
+                                {state?.automation.enabled
+                                    ? "Enabled"
+                                    : "Stopped"}
+                            </span>
+                        </div>
+                        <p className="automation-status">
+                            {state?.automation.status ??
+                                "Loading automation status·"}
+                        </p>
+                        <button
+                            className="primary"
                             disabled={
                                 busy ||
                                 !connected ||
@@ -373,942 +376,817 @@ export default function PaperTerminal() {
                                 )
                             }
                         >
+                            {state?.automation.enabled ? (
+                                <Square size={16} aria-hidden="true" />
+                            ) : (
+                                <Play size={16} aria-hidden="true" />
+                            )}
                             {state?.automation.enabled
                                 ? "Stop AI entries"
                                 : "Start AI paper trading"}
-                        </Button>
-                    </Stack>
-                    <Typography variant="body2" my={1}>
-                        {state?.automation.status ??
-                            "Loading automation status…"}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                        Model: {state?.automation.model ?? "Laya"} ·{" "}
-                        {state?.automation.model_healthy
-                            ? "Available"
-                            : "Not verified / unavailable"}
-                        {state?.automation.symbols.length
-                            ? ` · Watching ${state.automation.symbols.join(", ")}`
-                            : ""}
-                        . Stops and targets remain active when AI entries are
-                        stopped, while the app and feed run. Automation starts
-                        disabled after a restart.
-                    </Typography>
-                    {!!state?.automation.events.length && (
-                        <TableContainer sx={{ maxHeight: 230, mt: 2 }}>
-                            <Table size="small">
-                                <TableHead>
-                                    <TableRow>
-                                        {[
-                                            "Time (IST)",
-                                            "Stock",
-                                            "Decision",
-                                            "Reason / risk checks",
-                                        ].map((h) => (
-                                            <TableCell key={h}>{h}</TableCell>
-                                        ))}
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {[...state.automation.events]
-                                        .reverse()
-                                        .map((e, i) => (
-                                            <TableRow key={`${e.at}-${i}`}>
-                                                <TableCell>
-                                                    {when(e.at)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {e.symbol}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {e.direction}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {[
-                                                        e.action,
-                                                        e.reason,
-                                                        ...e.vetoes,
-                                                    ].join(" · ")}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                    )}
-                </Paper>
-                <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    mb={2}
-                >
-                    <Box>
-                        <Typography variant="h4">
-                            Your paper portfolio
-                        </Typography>
-                        <Typography color="text.secondary">
-                            Positions, orders and performance · IST
-                        </Typography>
-                    </Box>
-                    <Chip
-                        label={
-                            connected
-                                ? "Local service connected"
-                                : "Local service disconnected"
-                        }
-                        size="small"
-                        variant="outlined"
-                    />
-                </Stack>
-                <Box
-                    sx={{
-                        display: "grid",
-                        gridTemplateColumns: {
-                            xs: "1fr 1fr",
-                            md: "repeat(4, 1fr)",
-                        },
-                        gap: 2,
-                        mb: 3,
-                    }}
-                >
-                    {[
-                        ["Portfolio equity", "equity"],
-                        ["Available funds", "available_cash"],
-                        ["Open P&L", "unrealized_pnl"],
-                        ["Realized P&L", "realized_pnl"],
-                    ].map(([label, key]) => (
-                        <Paper key={key} sx={{ p: 2 }}>
-                            <Typography color="text.secondary" variant="body2">
-                                {label}
-                            </Typography>
-                            <Typography
-                                variant="h5"
-                                mt={1}
-                                sx={{
-                                    color: key.includes("pnl")
-                                        ? tint(state?.portfolio[key])
-                                        : "text.primary",
-                                }}
-                            >
-                                {money(state?.portfolio[key])}
-                            </Typography>
-                        </Paper>
-                    ))}
-                </Box>
-                <Alert severity="info" sx={{ mb: 2 }}>
-                    Prices: Yahoo Finance, best effort. Exchange timestamps and
-                    freshness are shown for every stock. This is not a direct
-                    NSE feed. All orders and money here are simulated.
-                </Alert>
-                {state?.session.phase !== "open" && (
-                    <Alert severity="warning" sx={{ mb: 2 }}>
-                        Market is {state?.session.phase ?? "unavailable"}. Paper
-                        orders require an open covered session and fresh
-                        regular-session prices.
-                    </Alert>
+                        </button>
+                        <p className="muted small">
+                            Intraday · {state?.automation.mover_count ?? "—"}{" "}
+                            stocks · {state?.automation.max_hold_minutes ?? "—"}{" "}
+                            min holding cap
+                        </p>
+                        <details>
+                            <summary>Model and execution details</summary>
+                            <p className="small">
+                                {state?.automation.model ?? "Laya"} ·{" "}
+                                {state?.automation.model_healthy
+                                    ? "Available"
+                                    : "Unavailable / not verified"}
+                                {state?.automation.latency_ms != null
+                                    ? ` · ${state.automation.latency_ms} ms`
+                                    : ""}
+                                . Active positions take priority. Qualifying
+                                opposite signals may close positions. Stops and
+                                targets remain active while the app and feed
+                                run. Automation starts disabled after a restart.
+                            </p>
+                            <p className="small">
+                                Watching:{" "}
+                                {state?.automation.symbols.join(", ") ||
+                                    "Waiting for stock selection"}
+                            </p>
+                        </details>
+                    </section>
+                </section>
+                <p className="data-note">
+                    Yahoo Finance · best-effort prices. Exchange timestamps and
+                    freshness are shown per stock. This is not a direct NSE
+                    feed. All trades and money are simulated.
+                </p>
+                {state && state.session.phase !== "open" && (
+                    <p className="notice">
+                        {state.session.phase === "closed"
+                            ? "Market is closed. Paper orders require an open session and fresh regular-session prices."
+                            : state.session.reason}
+                    </p>
                 )}
                 {!!state?.positions.length && state.feed !== "connected" && (
-                    <Alert severity="error" sx={{ mb: 2 }}>
-                        Price feed is disconnected. Simulated stops and exits
-                        cannot execute until fresh prices resume. Your saved
-                        positions remain open.
-                    </Alert>
+                    <p className="notice">
+                        Feed disconnected. Simulated stops and exits require
+                        fresh prices.
+                    </p>
                 )}
                 {error && (
-                    <Alert
-                        severity="error"
-                        onClose={() => setError("")}
-                        sx={{ mb: 2 }}
-                    >
+                    <p role="alert" className="notice">
                         {error}
-                    </Alert>
+                    </p>
                 )}
                 {notice && (
-                    <Alert
-                        severity="success"
-                        onClose={() => setNotice("")}
-                        sx={{ mb: 2 }}
-                    >
+                    <p role="status" className="notice">
                         {notice}
-                    </Alert>
+                    </p>
                 )}
-                <Tabs
-                    value={tab}
-                    onChange={(_, v) => setTab(v)}
-                    variant="scrollable"
-                    sx={{ mb: 2, borderBottom: "1px solid #253243" }}
-                >
-                    <Tab
-                        label={`Positions (${state?.positions.length ?? 0})`}
-                    />
-                    <Tab label="Trading terminal" />
-                    <Tab label={`Orders (${openOrders.length} pending)`} />
-                    <Tab label="Closed trades" />
-                    <Tab label="Executions" />
-                </Tabs>
-                {tab === 0 && (
-                    <Paper sx={{ p: 2 }}>
-                        <Typography variant="h6" mb={2}>
-                            Active positions
-                        </Typography>
-                        {!state?.positions.length ? (
-                            <Box textAlign="center" py={6}>
-                                <Typography variant="h6">
-                                    No open positions
-                                </Typography>
-                                <Typography color="text.secondary" mb={2}>
-                                    Connect prices and place your first paper
-                                    trade in the terminal.
-                                </Typography>
-                                <Button
-                                    variant="outlined"
-                                    onClick={() => setTab(1)}
-                                >
-                                    Open trading terminal
-                                </Button>
-                            </Box>
-                        ) : (
-                            <TableContainer>
-                                <Table size="small">
-                                    <TableHead>
-                                        <TableRow>
-                                            {[
-                                                "Stock",
-                                                "Product",
-                                                "Qty",
-                                                "Average",
-                                                "Last price",
-                                                "P&L",
-                                                "Stop / target",
-                                                "",
-                                            ].map((h) => (
-                                                <TableCell key={h}>
-                                                    {h}
-                                                </TableCell>
-                                            ))}
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {state.positions.map((p) => (
-                                            <TableRow
-                                                key={`${p.symbol}-${p.product}`}
-                                            >
-                                                <TableCell>
-                                                    {p.symbol}
-                                                    {!p.quote_fresh && (
-                                                        <Chip
-                                                            label="Stale mark"
-                                                            size="small"
-                                                            color="warning"
-                                                            sx={{ ml: 1 }}
-                                                        />
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {p.product}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {p.quantity}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {money(p.average_price)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {money(p.mark)}
-                                                </TableCell>
-                                                <TableCell
-                                                    sx={{
-                                                        color: tint(
-                                                            p.unrealized_pnl,
-                                                        ),
-                                                    }}
-                                                >
-                                                    {money(p.unrealized_pnl)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {money(p.stop_price)} /{" "}
-                                                    {p.target_price
-                                                        ? money(p.target_price)
-                                                        : "—"}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Button
-                                                        size="small"
-                                                        onClick={() =>
-                                                            closePosition(p)
-                                                        }
-                                                    >
-                                                        Close position
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-                        )}
-                        <Typography variant="caption" color="text.secondary">
-                            Total estimated charges:{" "}
-                            {money(state?.portfolio.charges)} · Exposure:{" "}
-                            {money(state?.portfolio.exposure)}
-                        </Typography>
-                    </Paper>
-                )}
-                {tab === 1 && (
-                    <Box
-                        sx={{
-                            display: "grid",
-                            gridTemplateColumns: { xs: "1fr", md: "1.2fr 1fr" },
-                            gap: 2,
-                        }}
+                <div className="workspace-grid">
+                    <section
+                        id="workspace"
+                        className="workspace"
+                        aria-label="Trading workspace"
                     >
-                        <Paper sx={{ p: 2 }}>
-                            <Stack
-                                direction="row"
-                                alignItems="center"
-                                justifyContent="space-between"
-                                mb={2}
-                            >
-                                <Typography variant="h6">
-                                    Nifty 50 market watch
-                                </Typography>
-                                <Chip
-                                    size="small"
-                                    label={`${state?.stocks.filter((s) => s.fresh).length ?? 0} fresh / ${state?.stocks.length ?? 0}`}
-                                />
-                            </Stack>
-                            <TextField
-                                fullWidth
-                                size="small"
-                                label="Find a Nifty stock"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                sx={{ mb: 1 }}
-                            />
-                            {!state?.stocks.length && (
-                                <Typography color="text.secondary" py={3}>
-                                    Connect the free feed to load the official
-                                    Nifty 50 list.
-                                </Typography>
-                            )}
-                            <TableContainer sx={{ maxHeight: 590 }}>
-                                <Table stickyHeader size="small">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>Stock</TableCell>
-                                            <TableCell align="right">
-                                                Price
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                Change
-                                            </TableCell>
-                                            <TableCell>
-                                                Quote time / status
-                                            </TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {state?.stocks
-                                            .filter((s) =>
-                                                `${s.symbol} ${s.company_name}`
-                                                    .toLowerCase()
-                                                    .includes(
-                                                        search.toLowerCase(),
-                                                    ),
-                                            )
-                                            .map((s) => (
-                                                <TableRow
-                                                    hover
-                                                    selected={
-                                                        s.symbol === symbol
-                                                    }
-                                                    key={s.symbol}
-                                                    onClick={() => {
-                                                        setSymbol(s.symbol);
-                                                        setReduceOnly(false);
-                                                        setNotice("");
-                                                    }}
-                                                    sx={{ cursor: "pointer" }}
+                        <nav className="tabs" aria-label="Portfolio views">
+                            {tabs.map((label, i) => (
+                                <button
+                                    key={label}
+                                    aria-current={
+                                        tab === i ? "page" : undefined
+                                    }
+                                    onClick={() => setTab(i)}
+                                >
+                                    {label}
+                                    {i === 0 && (
+                                        <span>
+                                            {state?.positions.length ?? 0}
+                                        </span>
+                                    )}
+                                    {i === 2 && (
+                                        <span>{openOrders.length}</span>
+                                    )}
+                                </button>
+                            ))}
+                        </nav>
+                        {tab === 0 && (
+                            <section className="view">
+                                <div className="section-heading">
+                                    <h2>Active positions</h2>
+                                    <button onClick={() => setTab(1)}>
+                                        New paper order{" "}
+                                        <ArrowUpRight
+                                            size={16}
+                                            aria-hidden="true"
+                                        />
+                                    </button>
+                                </div>
+                                {!state?.positions.length ? (
+                                    <div className="empty">
+                                        <ChartNoAxesCombined
+                                            size={32}
+                                            aria-hidden="true"
+                                        />
+                                        <h3>
+                                            {state
+                                                ? "No active positions"
+                                                : "Loading portfolio"}
+                                        </h3>
+                                        <p>
+                                            {state
+                                                ? "Your open paper trades will appear here. Place an order in the terminal or let Laya scan during its entry window."
+                                                : "Connecting to your local paper account·"}
+                                        </p>
+                                        <button onClick={() => setTab(1)}>
+                                            Open trading terminal{" "}
+                                            <ArrowUpRight
+                                                size={16}
+                                                aria-hidden="true"
+                                            />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    state.positions.map((p) => (
+                                        <article
+                                            className="position"
+                                            key={`${p.symbol}-${p.product}`}
+                                        >
+                                            <div className="section-heading">
+                                                <h3>
+                                                    {p.symbol}{" "}
+                                                    <span>
+                                                        {p.quantity > 0
+                                                            ? "Long"
+                                                            : "Short"}{" "}
+                                                        · {p.product}
+                                                    </span>
+                                                </h3>
+                                                <strong>
+                                                    {money(p.unrealized_pnl)}
+                                                </strong>
+                                            </div>
+                                            <dl className="position-metrics">
+                                                {[
+                                                    [
+                                                        "Quantity",
+                                                        Math.abs(p.quantity),
+                                                    ],
+                                                    [
+                                                        "Average",
+                                                        money(p.average_price),
+                                                    ],
+                                                    ["Mark", money(p.mark)],
+                                                    [
+                                                        "Stop",
+                                                        money(p.stop_price),
+                                                    ],
+                                                    [
+                                                        "Target",
+                                                        money(p.target_price),
+                                                    ],
+                                                ].map(([label, value]) => (
+                                                    <div key={label}>
+                                                        <dt>{label}</dt>
+                                                        <dd>{value}</dd>
+                                                    </div>
+                                                ))}
+                                            </dl>
+                                            <div className="position-actions">
+                                                <span className="small muted">
+                                                    {p.quote_fresh
+                                                        ? "Fresh quote"
+                                                        : "Stale quote"}
+                                                </span>
+                                                <a
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    href={`https://www.tradingview.com/chart/?symbol=NSE%3A${encodeURIComponent(p.symbol)}`}
                                                 >
-                                                    <TableCell>
-                                                        <Typography
-                                                            fontWeight={600}
-                                                            variant="body2"
-                                                        >
-                                                            {s.symbol}
-                                                        </Typography>
-                                                        <Typography
-                                                            variant="caption"
-                                                            color="text.secondary"
-                                                        >
-                                                            {s.company_name}
-                                                        </Typography>
-                                                    </TableCell>
-                                                    <TableCell align="right">
-                                                        {s.quote
-                                                            ? money(
-                                                                  s.quote.price,
-                                                              )
-                                                            : "—"}
-                                                    </TableCell>
-                                                    <TableCell
-                                                        align="right"
-                                                        sx={{
-                                                            color: tint(
-                                                                s.quote
-                                                                    ?.change_percent,
-                                                            ),
+                                                    Chart{" "}
+                                                    <ArrowUpRight
+                                                        size={16}
+                                                        aria-hidden="true"
+                                                    />
+                                                </a>
+                                                <button
+                                                    onClick={() =>
+                                                        closePosition(p)
+                                                    }
+                                                >
+                                                    Close position
+                                                </button>
+                                            </div>
+                                        </article>
+                                    ))
+                                )}
+                                <p className="small muted">
+                                    Estimated charges{" "}
+                                    {money(state?.portfolio.charges)} · Exposure{" "}
+                                    {money(state?.portfolio.exposure)}
+                                </p>
+                            </section>
+                        )}
+                        {tab === 1 && (
+                            <section className="view">
+                                <h2>Trading terminal</h2>
+                                <div className="terminal-grid">
+                                    <section>
+                                        <label className="search-label">
+                                            <Search
+                                                size={16}
+                                                aria-hidden="true"
+                                            />
+                                            Find a Nifty stock
+                                            <input
+                                                value={search}
+                                                onChange={(e) =>
+                                                    setSearch(e.target.value)
+                                                }
+                                                type="search"
+                                                placeholder="Symbol or company"
+                                            />
+                                        </label>
+                                        <div className="watchlist">
+                                            {state?.stocks
+                                                .filter((s) =>
+                                                    `${s.symbol} ${s.company_name}`
+                                                        .toLowerCase()
+                                                        .includes(
+                                                            search.toLowerCase(),
+                                                        ),
+                                                )
+                                                .map((s) => (
+                                                    <button
+                                                        className="stock-row"
+                                                        key={s.symbol}
+                                                        aria-pressed={
+                                                            symbol === s.symbol
+                                                        }
+                                                        onClick={() => {
+                                                            setSymbol(s.symbol);
+                                                            setReduceOnly(
+                                                                false,
+                                                            );
                                                         }}
                                                     >
-                                                        {s.quote
-                                                            ?.change_percent ==
-                                                        null
-                                                            ? "—"
-                                                            : `${s.quote.change_percent.toFixed(2)}%`}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Typography variant="caption">
-                                                            {s.quote
-                                                                ? when(
-                                                                      s.quote
-                                                                          .at,
-                                                                  )
-                                                                : "Waiting for quote"}
-                                                        </Typography>
-                                                        <Typography
-                                                            variant="caption"
-                                                            display="block"
-                                                            color={
-                                                                s.fresh
-                                                                    ? "success.main"
-                                                                    : "warning.main"
-                                                            }
-                                                        >
-                                                            {s.fresh
-                                                                ? "Fresh"
-                                                                : "Stale / unavailable"}
-                                                        </Typography>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-                        </Paper>
-                        <Paper
-                            component="form"
-                            sx={{ p: 3, alignSelf: "start" }}
-                            onSubmit={(event) => {
-                                event.preventDefault();
-                                act("/orders", {
-                                    symbol,
-                                    side,
-                                    product,
-                                    order_type: kind,
-                                    quantity: Number(quantity),
-                                    stop_price: isExit ? null : stop || null,
-                                    target_price: isExit
-                                        ? null
-                                        : target || null,
-                                    limit_price: limit || null,
-                                    trigger_price: trigger || null,
-                                    trailing_distance: isExit
-                                        ? null
-                                        : trailing || null,
-                                    reduce_only: isExit,
-                                });
-                            }}
-                        >
-                            <Stack
-                                direction="row"
-                                justifyContent="space-between"
-                                alignItems="center"
-                            >
-                                <Box>
-                                    <Typography variant="h5">
-                                        {symbol}
-                                    </Typography>
-                                    <Typography color="text.secondary">
-                                        {stock?.company_name ??
-                                            "Choose a Nifty 50 stock"}
-                                    </Typography>
-                                </Box>
-                                <Typography variant="h5">
-                                    {quote ? money(quote.price) : "—"}
-                                </Typography>
-                            </Stack>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                display="block"
-                                mt={1}
-                            >
-                                {quote
-                                    ? `${when(quote.at)} IST · ${stock?.fresh ? "Fresh quote" : "Stale quote"}`
-                                    : "Waiting for streaming prices"}
-                            </Typography>
-                            <Stack direction="row" gap={1} my={2}>
-                                <Button
-                                    variant={
-                                        side === "BUY"
-                                            ? "contained"
-                                            : "outlined"
-                                    }
-                                    onClick={() => {
-                                        setSide("BUY");
-                                        setReduceOnly(false);
-                                    }}
-                                >
-                                    Buy
-                                </Button>
-                                <Button
-                                    color="error"
-                                    variant={
-                                        side === "SELL"
-                                            ? "contained"
-                                            : "outlined"
-                                    }
-                                    onClick={() => {
-                                        setSide("SELL");
-                                        setReduceOnly(false);
-                                    }}
-                                >
-                                    Sell
-                                </Button>
-                            </Stack>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                display="block"
-                                my={2}
-                            >
-                                {feed === "connected"
-                                    ? dataStatus
-                                    : "Connect the feed to load and refresh stock data automatically."}
-                            </Typography>
-                            {stock?.error && (
-                                <Alert severity="warning" sx={{ mb: 2 }}>
-                                    {stock.error}
-                                </Alert>
-                            )}
-                            {isExit && (
-                                <Alert severity="info" sx={{ mb: 2 }}>
-                                    This order reduces an existing {product}{" "}
-                                    position.
-                                </Alert>
-                            )}
-                            <Box
-                                sx={{
-                                    display: "grid",
-                                    gridTemplateColumns: "1fr 1fr",
-                                    gap: 2,
-                                }}
-                            >
-                                <TextField
-                                    select
-                                    label="Product"
-                                    value={product}
-                                    onChange={(e) => {
-                                        setProduct(e.target.value);
-                                        setReduceOnly(false);
-                                    }}
-                                >
-                                    <MenuItem value="CNC">
-                                        Delivery (CNC)
-                                    </MenuItem>
-                                    <MenuItem value="MIS">
-                                        Intraday (MIS)
-                                    </MenuItem>
-                                </TextField>
-                                <TextField
-                                    select
-                                    label="Order type"
-                                    value={kind}
-                                    onChange={(e) => setKind(e.target.value)}
-                                >
-                                    {[
-                                        "MARKET",
-                                        "LIMIT",
-                                        "SL-M",
-                                        "SL",
-                                        "BRACKET",
-                                    ].map((t) => (
-                                        <MenuItem key={t} value={t}>
-                                            {t}
-                                        </MenuItem>
-                                    ))}
-                                </TextField>
-                                <TextField
-                                    required
-                                    label="Quantity"
-                                    type="number"
-                                    slotProps={{
-                                        htmlInput: {
-                                            min: 1,
-                                            max: 1000000000,
-                                            step: 1,
-                                        },
-                                    }}
-                                    value={quantity}
-                                    onChange={(e) =>
-                                        setQuantity(e.target.value)
-                                    }
-                                />
-                                {["LIMIT", "SL"].includes(kind) && (
-                                    <TextField
-                                        required
-                                        label="Limit price"
-                                        type="number"
-                                        slotProps={{
-                                            htmlInput: {
-                                                min: 0.01,
-                                                step: "any",
-                                            },
-                                        }}
-                                        value={limit}
-                                        onChange={(e) =>
-                                            setLimit(e.target.value)
-                                        }
-                                    />
-                                )}
-                                {["SL", "SL-M"].includes(kind) && (
-                                    <TextField
-                                        required
-                                        label="Trigger price"
-                                        type="number"
-                                        slotProps={{
-                                            htmlInput: {
-                                                min: 0.01,
-                                                step: "any",
-                                            },
-                                        }}
-                                        value={trigger}
-                                        onChange={(e) =>
-                                            setTrigger(e.target.value)
-                                        }
-                                    />
-                                )}
-                                {!isExit && (
-                                    <>
-                                        <TextField
-                                            required
-                                            label="Protective stop price (₹)"
-                                            helperText="Absolute stock price, not a rupee loss or percentage."
-                                            type="number"
-                                            slotProps={{
-                                                htmlInput: {
-                                                    min: 0.01,
-                                                    step: "any",
-                                                },
-                                            }}
-                                            value={stop}
-                                            onChange={(e) =>
-                                                setStop(e.target.value)
-                                            }
-                                        />
-                                        <TextField
-                                            required={kind === "BRACKET"}
-                                            label="Target (optional)"
-                                            type="number"
-                                            slotProps={{
-                                                htmlInput: {
-                                                    min: 0.01,
-                                                    step: "any",
-                                                },
-                                            }}
-                                            value={target}
-                                            onChange={(e) =>
-                                                setTarget(e.target.value)
-                                            }
-                                        />
-                                        <TextField
-                                            label="Trailing distance (optional)"
-                                            type="number"
-                                            slotProps={{
-                                                htmlInput: {
-                                                    min: 0.01,
-                                                    step: "any",
-                                                },
-                                            }}
-                                            value={trailing}
-                                            onChange={(e) =>
-                                                setTrailing(e.target.value)
-                                            }
-                                        />
-                                    </>
-                                )}
-                            </Box>
-                            {!isExit && estimatedRisk !== null && (
-                                <Alert
-                                    severity={
-                                        estimatedRisk > riskBudget
-                                            ? "warning"
-                                            : "info"
-                                    }
-                                    sx={{ mt: 2 }}
-                                >
-                                    Estimated loss to stop:{" "}
-                                    {money(estimatedRisk)}. Per-trade allowance:{" "}
-                                    {money(riskBudget)} (
-                                    {state?.risk_per_trade_pct}% of equity).
-                                    {estimatedRisk > riskBudget &&
-                                        " This exceeds the allowance. Reduce quantity or review your stop price."}{" "}
-                                    Based on the current quote; gaps, slippage
-                                    and charges can increase losses.
-                                </Alert>
-                            )}
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                my={2}
-                            >
-                                Estimated value:{" "}
-                                {quote
-                                    ? money(
-                                          Number(quantity) *
-                                              Number(quote.price),
-                                      )
-                                    : "—"}
-                                . Actual simulated fills include slippage and
-                                estimated charges. Orders wait for a later fresh
-                                quote with observed volume.
-                            </Typography>
-                            {!ready && (
-                                <Alert severity="warning" sx={{ mb: 2 }}>
-                                    To submit: connect the feed and wait for
-                                    automatic stock-data loading and fresh
-                                    regular-session prices while the market is
-                                    open.
-                                </Alert>
-                            )}
-                            <Button
-                                type="submit"
-                                fullWidth
-                                variant="contained"
-                                color={side === "BUY" ? "primary" : "error"}
-                                disabled={busy || !ready}
-                            >
-                                {busy
-                                    ? "Working…"
-                                    : `${side === "BUY" ? "Buy" : "Sell"} · paper order`}
-                            </Button>
-                            <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                display="block"
-                                mt={2}
-                            >
-                                Entries require protective stops. CNC short
-                                entries are blocked; MIS supports paper
-                                shorting. Funds and risk are checked again at
-                                fill time.
-                            </Typography>
-                        </Paper>
-                    </Box>
-                )}
-                {tab === 2 && (
-                    <Paper sx={{ p: 2 }}>
-                        <Typography variant="h6" mb={2}>
-                            Orders · {openOrders.length} pending
-                        </Typography>
-                        <TableContainer>
-                            <Table size="small">
-                                <TableHead>
-                                    <TableRow>
-                                        {[
-                                            "Time",
-                                            "Stock",
-                                            "Side",
-                                            "Product",
-                                            "Type",
-                                            "Qty / remaining",
-                                            "Status",
-                                            "",
-                                        ].map((h) => (
-                                            <TableCell key={h}>{h}</TableCell>
-                                        ))}
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {[...(state?.orders ?? [])]
-                                        .reverse()
-                                        .map((o) => (
-                                            <TableRow key={o.order.id}>
-                                                <TableCell>
-                                                    {when(o.order.signal_at)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {o.order.symbol}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {o.order.side}
-                                                    {o.order.reduce_only
-                                                        ? " · exit"
-                                                        : ""}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {o.order.product}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {o.order.order_type}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {o.order.quantity} /{" "}
-                                                    {o.remaining}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Chip
-                                                        size="small"
-                                                        label={o.status}
-                                                    />
-                                                    {o.reasons?.length && (
-                                                        <Typography
-                                                            variant="caption"
-                                                            display="block"
-                                                            color="error.main"
-                                                        >
-                                                            {o.reasons.join(
-                                                                ", ",
+                                                        <span>
+                                                            <strong>
+                                                                {s.symbol}
+                                                            </strong>
+                                                            <small>
+                                                                {s.company_name}
+                                                            </small>
+                                                        </span>
+                                                        <span>
+                                                            {money(
+                                                                s.quote?.price,
                                                             )}
-                                                        </Typography>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
+                                                            <small>
+                                                                {s.quote
+                                                                    ?.change_percent ==
+                                                                null
+                                                                    ? "—"
+                                                                    : `${s.quote.change_percent > 0 ? "+" : ""}${s.quote.change_percent.toFixed(2)}%`}{" "}
+                                                                ·{" "}
+                                                                {s.fresh
+                                                                    ? "Fresh"
+                                                                    : "Stale"}
+                                                            </small>
+                                                            <small>
+                                                                {s.quote
+                                                                    ? `${when(s.quote.at)} IST`
+                                                                    : "No quote available"}
+                                                            </small>
+                                                        </span>
+                                                    </button>
+                                                ))}
+                                        </div>
+                                        {!state?.stocks.length && (
+                                            <p className="muted">
+                                                Connect the feed to load the
+                                                Nifty 50 list.
+                                            </p>
+                                        )}
+                                    </section>
+                                    <section>
+                                        <div className="section-heading">
+                                            <h3>{symbol}</h3>
+                                            <strong>
+                                                {money(quote?.price)}
+                                            </strong>
+                                        </div>
+                                        <p className="small muted">
+                                            {quote
+                                                ? `${when(quote.at)} IST · ${stock?.fresh ? "Fresh" : "Stale"}`
+                                                : "No quote available"}
+                                        </p>
+                                        <a
+                                            href={`https://www.tradingview.com/chart/?symbol=NSE%3A${encodeURIComponent(symbol)}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            Open chart{" "}
+                                            <ArrowUpRight
+                                                size={16}
+                                                aria-hidden="true"
+                                            />
+                                        </a>
+                                        <p className="small muted">
+                                            {dataStatus}
+                                        </p>
+                                        <form
+                                            className="order-form"
+                                            onSubmit={(e) => {
+                                                e.preventDefault();
+                                                void act("/orders", {
+                                                    symbol,
+                                                    side,
+                                                    product,
+                                                    order_type: kind,
+                                                    quantity: Number(quantity),
+                                                    limit_price: [
+                                                        "LIMIT",
+                                                        "SL",
+                                                    ].includes(kind)
+                                                        ? limit || null
+                                                        : null,
+                                                    trigger_price: [
+                                                        "SL",
+                                                        "SL-M",
+                                                    ].includes(kind)
+                                                        ? trigger || null
+                                                        : null,
+                                                    stop_price: isExit
+                                                        ? null
+                                                        : stop || null,
+                                                    target_price: isExit
+                                                        ? null
+                                                        : target || null,
+                                                    trailing_distance: isExit
+                                                        ? null
+                                                        : trailing || null,
+                                                    reduce_only: isExit,
+                                                });
+                                            }}
+                                        >
+                                            <label>
+                                                Side
+                                                <select
+                                                    value={side}
+                                                    onChange={(e) => {
+                                                        setSide(e.target.value);
+                                                        setReduceOnly(false);
+                                                    }}
+                                                >
+                                                    <option>BUY</option>
+                                                    <option>SELL</option>
+                                                </select>
+                                            </label>
+                                            <label>
+                                                Product
+                                                <select
+                                                    value={product}
+                                                    onChange={(e) => {
+                                                        setProduct(
+                                                            e.target.value,
+                                                        );
+                                                        setReduceOnly(false);
+                                                    }}
+                                                >
+                                                    <option value="CNC">
+                                                        Delivery (CNC)
+                                                    </option>
+                                                    <option value="MIS">
+                                                        Intraday (MIS)
+                                                    </option>
+                                                </select>
+                                            </label>
+                                            <label>
+                                                Order type
+                                                <select
+                                                    value={kind}
+                                                    onChange={(e) =>
+                                                        setKind(e.target.value)
+                                                    }
+                                                >
                                                     {[
-                                                        "OPEN",
-                                                        "PARTIAL",
-                                                    ].includes(o.status) && (
-                                                        <Button
-                                                            disabled={busy}
-                                                            onClick={() =>
-                                                                act(
-                                                                    `/orders/${o.order.id}`,
-                                                                    undefined,
-                                                                    "DELETE",
+                                                        "MARKET",
+                                                        "LIMIT",
+                                                        "SL-M",
+                                                        "SL",
+                                                        "BRACKET",
+                                                    ].map((k) => (
+                                                        <option key={k}>
+                                                            {k}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </label>
+                                            <label>
+                                                Quantity
+                                                <input
+                                                    required
+                                                    type="number"
+                                                    min="1"
+                                                    max="1000000000"
+                                                    step="1"
+                                                    value={quantity}
+                                                    onChange={(e) =>
+                                                        setQuantity(
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                />
+                                            </label>
+                                            {["LIMIT", "SL"].includes(kind) && (
+                                                <label>
+                                                    Limit price
+                                                    <input
+                                                        required
+                                                        type="number"
+                                                        min="0.01"
+                                                        step="any"
+                                                        value={limit}
+                                                        onChange={(e) =>
+                                                            setLimit(
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                    />
+                                                </label>
+                                            )}
+                                            {["SL", "SL-M"].includes(kind) && (
+                                                <label>
+                                                    Trigger price
+                                                    <input
+                                                        required
+                                                        type="number"
+                                                        min="0.01"
+                                                        step="any"
+                                                        value={trigger}
+                                                        onChange={(e) =>
+                                                            setTrigger(
+                                                                e.target.value,
+                                                            )
+                                                        }
+                                                    />
+                                                </label>
+                                            )}
+                                            {!isExit && (
+                                                <>
+                                                    <label>
+                                                        Stop price
+                                                        <input
+                                                            required
+                                                            type="number"
+                                                            min="0.01"
+                                                            step="any"
+                                                            value={stop}
+                                                            onChange={(e) =>
+                                                                setStop(
+                                                                    e.target
+                                                                        .value,
                                                                 )
                                                             }
-                                                        >
-                                                            Cancel
-                                                        </Button>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                        {!state?.orders.length && (
-                            <Typography color="text.secondary" py={4}>
-                                No paper orders yet.
-                            </Typography>
+                                                        />
+                                                    </label>
+                                                    <label>
+                                                        Target price
+                                                        <input
+                                                            required={
+                                                                kind ===
+                                                                "BRACKET"
+                                                            }
+                                                            type="number"
+                                                            min="0.01"
+                                                            step="any"
+                                                            value={target}
+                                                            onChange={(e) =>
+                                                                setTarget(
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                        />
+                                                    </label>
+                                                    <label>
+                                                        Trailing distance
+                                                        <input
+                                                            type="number"
+                                                            min="0.01"
+                                                            step="any"
+                                                            value={trailing}
+                                                            onChange={(e) =>
+                                                                setTrailing(
+                                                                    e.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                        />
+                                                    </label>
+                                                </>
+                                            )}
+                                            <p className="full small muted">
+                                                {isExit
+                                                    ? "Closing an existing position. Review the quantity before submitting."
+                                                    : `Estimated stop risk ${money(estimatedRisk)} · Budget ${money(riskBudget)}`}
+                                            </p>
+                                            <button
+                                                className="primary full"
+                                                disabled={!ready || busy}
+                                                type="submit"
+                                            >
+                                                {busy
+                                                    ? "Submitting·"
+                                                    : `${side === "BUY" ? "Buy" : "Sell"} ${symbol} · paper order`}
+                                            </button>
+                                            {!ready && (
+                                                <p className="full small muted">
+                                                    Orders require an open
+                                                    session, connected feed,
+                                                    fresh quote and prepared
+                                                    stock data.
+                                                </p>
+                                            )}
+                                        </form>
+                                    </section>
+                                </div>
+                            </section>
                         )}
-                    </Paper>
-                )}
-                {tab === 3 && (
-                    <Paper sx={{ p: 2 }}>
-                        <Typography variant="h6" mb={2}>
-                            Closed trades
-                        </Typography>
-                        <TableContainer>
-                            <Table size="small">
-                                <TableHead>
-                                    <TableRow>
-                                        {[
-                                            "Stock",
-                                            "Qty",
-                                            "Opened",
-                                            "Closed",
-                                            "Net P&L",
-                                            "Charges",
-                                            "Reason",
-                                        ].map((h) => (
-                                            <TableCell key={h}>{h}</TableCell>
-                                        ))}
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {[...(state?.closed_trades ?? [])]
-                                        .reverse()
-                                        .map((t, i) => (
-                                            <TableRow key={i}>
-                                                <TableCell>
-                                                    {t.symbol}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {t.quantity}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {when(t.opened_at)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {when(t.closed_at)}
-                                                </TableCell>
-                                                <TableCell
-                                                    sx={{ color: tint(t.pnl) }}
-                                                >
-                                                    {money(t.pnl)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {money(t.charges)}
-                                                </TableCell>
-                                                <TableCell>
-                                                    {t.reason}
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
-                        {!state?.closed_trades.length && (
-                            <Typography color="text.secondary" py={4}>
-                                Closed positions and partial exits will appear
-                                here.
-                            </Typography>
+                        {tab === 2 && (
+                            <section className="view">
+                                <h2>Orders</h2>
+                                <div
+                                    className="table-scroll"
+                                    role="region"
+                                    aria-label="Orders"
+                                    tabIndex={0}
+                                >
+                                    <table>
+                                        <caption>
+                                            Paper orders and remaining
+                                            quantities
+                                        </caption>
+                                        <thead>
+                                            <tr>
+                                                {[
+                                                    "Stock / product",
+                                                    "Side / type",
+                                                    "Quantity",
+                                                    "Status",
+                                                    "Action",
+                                                ].map((h) => (
+                                                    <th scope="col" key={h}>
+                                                        {h}
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {state?.orders.map((o) => (
+                                                <tr key={o.order.id}>
+                                                    <th scope="row">
+                                                        {o.order.symbol}
+                                                        <small>
+                                                            {o.order.product}
+                                                        </small>
+                                                    </th>
+                                                    <td>
+                                                        {o.order.side}
+                                                        <small>
+                                                            {o.order.order_type}
+                                                        </small>
+                                                    </td>
+                                                    <td>
+                                                        {o.order.quantity}
+                                                        <small>
+                                                            {o.remaining}{" "}
+                                                            remaining
+                                                        </small>
+                                                    </td>
+                                                    <td>
+                                                        {readable(o.status)}
+                                                        <small>
+                                                            {o.reasons?.join(
+                                                                ", ",
+                                                            )}
+                                                        </small>
+                                                    </td>
+                                                    <td>
+                                                        {[
+                                                            "OPEN",
+                                                            "PARTIAL",
+                                                        ].includes(o.status) ? (
+                                                            <button
+                                                                disabled={busy}
+                                                                onClick={() =>
+                                                                    act(
+                                                                        `/orders/${encodeURIComponent(o.order.id)}`,
+                                                                        undefined,
+                                                                        "DELETE",
+                                                                    )
+                                                                }
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        ) : (
+                                                            "—"
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {!state?.orders.length && (
+                                    <p className="empty">
+                                        No paper orders yet.
+                                    </p>
+                                )}
+                            </section>
                         )}
-                    </Paper>
-                )}
-                {tab === 4 && (
-                    <Paper sx={{ p: 2 }}>
-                        <Typography variant="h6" mb={2}>
-                            Paper executions
-                        </Typography>
-                        {[...(state?.fills ?? [])].reverse().map((f, i) => (
-                            <Stack
-                                key={i}
-                                direction="row"
-                                justifyContent="space-between"
-                                py={1}
-                                borderBottom="1px solid #253243"
+                        {tab === 3 && (
+                            <section className="view">
+                                <h2>Closed trades</h2>
+                                <div
+                                    className="table-scroll"
+                                    role="region"
+                                    aria-label="Closed trades"
+                                    tabIndex={0}
+                                >
+                                    <table>
+                                        <caption>
+                                            Completed paper positions · times in
+                                            IST
+                                        </caption>
+                                        <thead>
+                                            <tr>
+                                                {[
+                                                    "Stock",
+                                                    "Quantity",
+                                                    "P&L",
+                                                    "Charges",
+                                                    "Closed / reason",
+                                                ].map((h) => (
+                                                    <th scope="col" key={h}>
+                                                        {h}
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {state?.closed_trades.map(
+                                                (t, i) => (
+                                                    <tr
+                                                        key={`${t.closed_at}-${i}`}
+                                                    >
+                                                        <th scope="row">
+                                                            {t.symbol}
+                                                        </th>
+                                                        <td>{t.quantity}</td>
+                                                        <td>{money(t.pnl)}</td>
+                                                        <td>
+                                                            {money(t.charges)}
+                                                        </td>
+                                                        <td>
+                                                            {when(t.closed_at)}
+                                                            <small>
+                                                                {readable(
+                                                                    t.reason,
+                                                                )}
+                                                            </small>
+                                                        </td>
+                                                    </tr>
+                                                ),
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {!state?.closed_trades.length && (
+                                    <p className="empty">
+                                        No closed trades yet.
+                                    </p>
+                                )}
+                            </section>
+                        )}
+                        {tab === 4 && (
+                            <section className="view">
+                                <h2>Executions</h2>
+                                <div
+                                    className="table-scroll"
+                                    role="region"
+                                    aria-label="Executions"
+                                    tabIndex={0}
+                                >
+                                    <table>
+                                        <caption>
+                                            Simulated fills · times in IST
+                                        </caption>
+                                        <thead>
+                                            <tr>
+                                                {[
+                                                    "Stock",
+                                                    "Side",
+                                                    "Quantity",
+                                                    "Fill price",
+                                                    "Time / reason",
+                                                ].map((h) => (
+                                                    <th scope="col" key={h}>
+                                                        {h}
+                                                    </th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {state?.fills.map((f, i) => (
+                                                <tr key={`${f.at}-${i}`}>
+                                                    <th scope="row">
+                                                        {f.symbol}
+                                                    </th>
+                                                    <td>{f.side}</td>
+                                                    <td>{f.quantity}</td>
+                                                    <td>{money(f.price)}</td>
+                                                    <td>
+                                                        {when(f.at)}
+                                                        <small>
+                                                            {readable(f.reason)}
+                                                        </small>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {!state?.fills.length && (
+                                    <p className="empty">No executions yet.</p>
+                                )}
+                            </section>
+                        )}
+                    </section>
+                    <aside
+                        className="journal"
+                        aria-labelledby="journal-heading"
+                    >
+                        <div className="section-heading">
+                            <h2 id="journal-heading">Decision journal</h2>
+                            <span>IST</span>
+                        </div>
+                        <p className="small muted">
+                            Latest Laya decisions and execution checks.
+                        </p>
+                        {state?.automation.events.length ? (
+                            [...state.automation.events]
+                                .reverse()
+                                .slice(0, showAllDecisions ? undefined : 10)
+                                .map((e, i) => (
+                                    <article
+                                        className="journal-entry"
+                                        key={`${e.at}-${i}`}
+                                    >
+                                        <div className="section-heading">
+                                            <strong>{e.symbol}</strong>
+                                            <span>{e.direction}</span>
+                                        </div>
+                                        <p>
+                                            {[e.action, e.reason, ...e.vetoes]
+                                                .filter(Boolean)
+                                                .map((v) => readable(v!))
+                                                .join(" · ")}
+                                        </p>
+                                        <time>{when(e.at)}</time>
+                                    </article>
+                                ))
+                        ) : (
+                            <p className="muted">
+                                Decisions will appear when Laya scans the
+                                market.
+                            </p>
+                        )}
+                        {!!state && state.automation.events.length > 10 && (
+                            <button
+                                className="journal-toggle"
+                                aria-expanded={showAllDecisions}
+                                onClick={() =>
+                                    setShowAllDecisions(!showAllDecisions)
+                                }
                             >
-                                <Typography>
-                                    {f.symbol} · {f.side} {f.quantity} @{" "}
-                                    {money(f.price)}
-                                </Typography>
-                                <Typography color="text.secondary">
-                                    {when(f.at)} · {f.reason}
-                                </Typography>
-                            </Stack>
-                        ))}
-                        {!state?.fills.length && (
-                            <Typography color="text.secondary" py={4}>
-                                No fills yet. Accepted orders appear here once
-                                simulated execution occurs.
-                            </Typography>
+                                {showAllDecisions
+                                    ? "Show latest decisions"
+                                    : "Show earlier decisions"}
+                            </button>
                         )}
-                    </Paper>
-                )}
-                <Typography
-                    variant="caption"
-                    display="block"
-                    color="text.secondary"
-                    mt={3}
-                >
-                    Personal paper simulation · Saved locally · No broker
-                    credentials or real orders · Keep the app and feed running
-                    for simulated stops and exits
-                </Typography>
-            </Container>
-        </>
+                    </aside>
+                </div>
+                <footer>
+                    <span>
+                        Paper trading only · Keep the app and feed running for
+                        simulated exits.
+                    </span>
+                    <a href="/?workspace=research">
+                        Research workspace{" "}
+                        <ArrowUpRight size={16} aria-hidden="true" />
+                    </a>
+                </footer>
+            </main>
+        </div>
     );
 }
