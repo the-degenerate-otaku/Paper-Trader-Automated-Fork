@@ -1,5 +1,11 @@
 # Security and smoke verification
 
+## Requested LOW-conviction paper experiment - 2026-10-21
+
+Changed only system_one.min_conviction from MEDIUM to LOW with explicit user authorization. Direction remains 0.5 and reversal-risk maximum remains 0.4; all execution, stop, funds, exposure, session and loss checks remain unchanged. LOW corresponds to an expected ordinal score minimum of zero, so the conviction filter no longer excludes otherwise valid probability distributions in this experiment. This is not a calibrated trading-performance claim.
+
+All 28 inference/live-paper tests, Ruff, mypy, source/launcher Bandit, application/inference advisory audits, npm audit, repository/history privacy scan and 13 live HTTP security probes passed. The restarted settings API confirmed LOW/0.5/0.4 and the bot was re-enabled with its connected source. Account history and protective parameters were preserved. New-commit CI has not yet been observed.
+
 ## Requested direction threshold experiment - 2026-10-21
 
 Changed only system_one.min_direction_prob from 0.65 to 0.5 at the user request for a paper-trading experiment. Conviction, reversal-risk, stop, funds, session, exposure and other risk gates remain unchanged. This is a model-score threshold, not a calibrated trade win probability.

@@ -187,7 +187,7 @@ system_one:
   checkpoint_revision: 7b928d828b7b0e022f929d9bd2e44165aa270148
   timeout_ms: 5000
   min_direction_prob: 0.5
-  min_conviction: MEDIUM
+  min_conviction: LOW
   max_reversal_risk: 0.4
   temperature_scalar: 1
   retries: 1
