@@ -1,0 +1,226 @@
+mode: paper
+auto_paper:
+  cpu_threads: 4
+  poll_seconds: 10
+  mover_count: 50
+  max_hold_minutes: 20
+  max_candle_age_seconds: 120
+  max_events: 100
+research:
+  horizon_bars: 12
+  reliability_bins: 10
+  train_fraction: 0.7
+  min_train_samples: 20
+  min_validation_samples: 10
+  temperature_grid:
+  - 0.5
+  - 0.75
+  - 1
+  - 1.5
+  - 2
+  - 3
+  train_bars: 150
+  test_bars: 75
+  embargo_bars: 12
+  walk_step_bars: 75
+  max_samples: 100000
+  stress_drop_every: 5
+  stress_volume_factor: 0.1
+  stress_slippage_factor: 3
+  stress_outage_after_bars: 85
+arena:
+  interval_seconds: 1
+  max_bots: 8
+  live_refresh_enabled: false
+  live_symbols: []
+  live_timeframe: 5m
+  lookback_days: 5
+  refresh_seconds: 60
+  bots:
+  - id: ema-baseline
+    name: EMA baseline
+    bankroll_inr: 500000
+    strategy: ema
+    mode: manual
+  - id: local-ai
+    name: Local Laya
+    bankroll_inr: 500000
+    strategy: systemone
+    mode: shadow
+server:
+  port: 2082
+  max_request_bytes: 65536
+  max_range_header_bytes: 4096
+  websocket_interval_seconds: 1
+  replay_interval_seconds: 0.1
+  development_origins: []
+account:
+  name: Comparison research-balanced
+  starting_capital_inr: 1000000
+  currency: INR
+  timezone: Asia/Kolkata
+storage:
+  database_path: ../data/comparison-research-balanced.sqlite3
+  busy_timeout_ms: 5000
+universe:
+  indices:
+    NIFTY50:
+      name: NIFTY 50
+      provider_symbol: ^NSEI
+      constituents_url: https://www.niftyindices.com/IndexConstituent/ind_nifty50list.csv
+    NIFTYBANK:
+      name: NIFTY BANK
+      provider_symbol: ^NSEBANK
+      constituents_url: https://www.niftyindices.com/IndexConstituent/ind_niftybanklist.csv
+  include_constituents: true
+  custom_symbols: []
+  refresh_days: 7
+  timeout_seconds: 20
+  user_agent: Mozilla/5.0
+  allowed_series:
+  - EQ
+  allowed_hosts:
+  - www.niftyindices.com
+  max_csv_bytes: 1048576
+session:
+  pre_open: 09:00
+  open: 09:15
+  close: '15:30'
+  mis_squareoff: '15:15'
+  last_entry: '14:45'
+  weekdays:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  skip_first_minutes: 15
+  skip_last_minutes: 10
+  calendar_path: ../calendars/nse.yaml
+data:
+  provider: yfinance
+  timeframes:
+  - 1m
+  - 5m
+  - 15m
+  - 1d
+  warmup_bars: 200
+  adjust_corporate_actions: true
+  stale_after_seconds: 900
+  max_fetch_bars: 100000
+  max_import_bytes: 20971520
+features:
+  ema_periods:
+  - 9
+  - 20
+  - 50
+  - 200
+  sma_period: 20
+  rsi_period: 14
+  atr_period: 14
+  adx_period: 14
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+  bollinger_period: 20
+  bollinger_std: 2
+  supertrend_multiple: 3
+  volume_period: 20
+  volatility_period: 20
+  return_periods:
+  - 1
+  - 5
+  - 15
+  - 60
+  opening_range_minutes: 15
+  high_low_days: 364
+  trend_adx_min: 25
+  high_volatility_atr_pct: 2
+  open_bucket_minutes: 30
+  late_bucket_minutes: 60
+  state_max_bytes: 380
+execution:
+  tick_size: 0.05
+  latency_ms: 500
+  fill_on: next_bar_open
+  slippage_bps: 2
+  impact_volume_pct: 0.1
+  max_bar_volume_fill_pct: 10
+  mis_leverage: 5
+  limit_trade_through_ticks: 1
+  atr_slippage_fraction: 0.01
+simulation:
+  random_seed: 7
+  history_bars: 2000
+  max_log_events: 1000
+  strategy: hold
+  product: MIS
+  ema_fast: 9
+  ema_slow: 20
+  trading_days_per_year: 252
+  calendar_days_per_year: 365.25
+instrument_rules: {}
+charges:
+- id: nse-cash-2026-03
+  effective_date: 2026-03-01
+  verified_on: 2026-10-20
+  sources:
+  - https://nsearchives.nseindia.com/content/circulars/FA73061.pdf
+  - https://zerodha.com/charges/
+  brokerage_intraday_rate: 0.0003
+  brokerage_delivery_rate: 0
+  brokerage_cap_inr: 20
+  stt_delivery_rate: 0.001
+  stt_intraday_sell_rate: 0.00025
+  transaction_rate: 3.0699e-05
+  ipft_rate: 1.0e-09
+  sebi_rate: 1.0e-06
+  gst_rate: 0.18
+  stamp_delivery_buy_rate: 0.00015
+  stamp_intraday_buy_rate: 3.0e-05
+  dp_charge_inr: 13
+  money_quantum: 0.01
+  stt_quantum: 1
+risk:
+  risk_per_trade_pct: 0.5
+  max_position_pct: 15
+  max_exposure_pct: 45
+  max_open_positions: 3
+  max_per_sector: 1
+  daily_loss_limit_pct: 2
+  weekly_loss_limit_pct: 5
+  max_drawdown_kill_pct: 8
+  max_consecutive_losses: 3
+  cooldown_minutes: 10
+  min_avg_turnover_inr: 1000000
+  atr_stop_multiple: 1.5
+  reward_risk_ratio: 1.5
+  max_trades_per_day: 10
+  max_trades_per_symbol: 3
+  minimum_trade_gap_minutes: 5
+  minimum_bar_volume: 10
+  max_correlated_positions: 2
+  correlation_threshold: 0.8
+  event_blackouts: {}
+  event_blackout_days: 0
+  banned_symbols: []
+  sizing_buffer_bps: 25
+system_one:
+  endpoint: http://127.0.0.1:8000/v1/systemone
+  checkpoint: typed-decisions
+  checkpoint_repo: convaiinnovations/laya
+  checkpoint_subfolder: typed-decisions
+  checkpoint_revision: 7b928d828b7b0e022f929d9bd2e44165aa270148
+  timeout_ms: 5000
+  min_direction_prob: 0.6
+  min_conviction: MEDIUM
+  max_reversal_risk: 0.4
+  temperature_scalar: 1
+  retries: 1
+  max_response_bytes: 65536
+  accepted_response_models:
+  - laya-rl-agent
+benchmarks:
+- NIFTY50
+- NIFTYBANK
+risk_free_rate_pct: 6.5

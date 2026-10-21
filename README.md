@@ -4,6 +4,8 @@ Local Nifty 50 paper portfolio and buy/sell terminal for Windows and Linux. Virt
 
 ## Status
 
+A separate [research comparison](docs/research-review.md) is prepared for review, with [isolated baseline and candidate profiles](profiles/README.md). It has not been activated or promoted into the default paper account; the model weights and active config remain unchanged.
+
 The active configuration uses a [permissive paper experiment](docs/paper-experiment.md) requested for observing more entries. This increases allowed risk and exposure; it does not establish strategy quality.
 
 The default app is now a manual paper-trading portal: active positions, funds, P&L, pending/filled/cancelled/rejected orders, closed trades and executions. Its terminal has the official observed Nifty 50 stock list, streaming prices with exchange timestamps, market/limit/stop/bracket tickets, protective stops, targets and trailing distances. Orders fill only on later fresh observations with positive observed volume, through the existing paper exchange and deterministic risk checks. [Operation and data limitations](docs/live-paper.md).
