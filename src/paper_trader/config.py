@@ -358,6 +358,7 @@ class LivePaperConfig(Section):
 
 
 class AutoPaperConfig(Section):
+    require_cost_coverage: bool = False
     cpu_threads: int = Field(default=4, ge=1, le=16)
     poll_seconds: int = Field(default=10, ge=1, le=300)
     mover_count: int = Field(default=50, ge=1, le=50)

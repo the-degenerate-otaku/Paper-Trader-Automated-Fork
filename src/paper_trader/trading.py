@@ -353,6 +353,7 @@ class RiskContext:
     expiry_blackout: bool = False
     feed_healthy: bool = True
     atr: Decimal = Decimal(0)
+    enforce_entry_economics: bool = False
 
 
 def portfolio_stop_risk(portfolio: Portfolio) -> Decimal:
@@ -496,7 +497,7 @@ class RiskEngine:
                     > equity * cfg.max_portfolio_stop_risk_pct / 100
                 ):
                     reasons.append("PORTFOLIO_STOP_RISK_LIMIT")
-        if self.settings.entry_economics.enabled:
+        if self.settings.entry_economics.enabled or context.enforce_entry_economics:
             try:
                 economics = self.economics(
                     order,
@@ -760,7 +761,7 @@ class PaperExchange:
                 )
             effective = order.model_copy(update={"quantity": quantity})
             fill_context = pending.context
-            if self.settings.entry_economics.enabled:
+            if self.settings.entry_economics.enabled or pending.context.enforce_entry_economics:
                 fill_context = replace(
                     pending.context,
                     bar_volume=candle.volume,

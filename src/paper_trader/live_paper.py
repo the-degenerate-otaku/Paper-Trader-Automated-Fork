@@ -207,7 +207,7 @@ class LivePaper:
             <= self.settings.live_paper.quote_max_age_seconds
         )
 
-    def context(self, symbol: str) -> RiskContext:
+    def context(self, symbol: str, *, enforce_economics: bool = False) -> RiskContext:
         bars = tuple(c for c in self.bars.get(symbol, ()) if c.closed_at <= self.now())
         totals: dict[date, Decimal] = defaultdict(Decimal)
         today = self.now().astimezone(self.calendar.zone).date()
@@ -226,8 +226,9 @@ class LivePaper:
                 if np.std(ar) > 0 and np.std(br) > 0:
                     correlations[position.symbol] = float(np.corrcoef(ar, br)[0, 1])
         return RiskContext(
+            enforce_entry_economics=enforce_economics,
             atr=closed_atr(bars, self.settings.features.atr_period)
-            if self.settings.entry_economics.enabled
+            if self.settings.entry_economics.enabled or enforce_economics
             else Decimal(0),
             sector=str(self.members.get(symbol, {}).get("sector", "UNKNOWN")),
             average_turnover=sum(totals.values(), Decimal(0)) / len(totals) if totals else None,
@@ -251,7 +252,10 @@ class LivePaper:
             ticket.symbol not in self.members or not self.membership_fresh()
         ):
             raise HTTPException(409, "A current 50-stock Nifty membership snapshot is required")
-        context = self.context(ticket.symbol)
+        context = self.context(
+            ticket.symbol,
+            enforce_economics=automated and self.settings.auto_paper.require_cost_coverage,
+        )
         if ticket.reduce_only:
             context = replace(context, feed_healthy=True)
         order = Order.model_validate(
@@ -260,7 +264,9 @@ class LivePaper:
         previous = self.saved().model_copy(deep=True)
         reasons = self.exchange.submit(order, quote.price, context)
         economics = None
-        if self.settings.entry_economics.enabled and not order.reduce_only:
+        if (
+            self.settings.entry_economics.enabled or context.enforce_entry_economics
+        ) and not order.reduce_only:
             try:
                 economics = self.exchange.risk.economics(
                     order, quote.price, context, order.signal_at
@@ -400,9 +406,15 @@ class LivePaper:
         self.automation.time_exit(symbol)
         previous = self.saved().model_copy(deep=True)
         context = self.context(symbol)
+        automated_context = None
         for pending in self.exchange.orders.values():
             if pending.order.symbol == symbol and pending.status in {"OPEN", "PARTIAL"}:
-                pending.context = context
+                if pending.context.enforce_entry_economics:
+                    if automated_context is None:
+                        automated_context = self.context(symbol, enforce_economics=True)
+                    pending.context = automated_context
+                else:
+                    pending.context = context
                 if pending.order.reduce_only:
                     pending.context = replace(pending.context, feed_healthy=True)
         candle = Candle(

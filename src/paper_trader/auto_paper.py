@@ -79,6 +79,8 @@ class AutoPaper:
             "product": "MIS",
             "mover_count": self.paper.settings.auto_paper.mover_count,
             "max_hold_minutes": self.paper.settings.auto_paper.max_hold_minutes,
+            "cost_gate_enabled": self.paper.settings.auto_paper.require_cost_coverage
+            or self.paper.settings.entry_economics.enabled,
             "events": [
                 {
                     key: event[key]

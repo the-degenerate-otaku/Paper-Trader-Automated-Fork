@@ -32,6 +32,8 @@ The primary React workspace uses the visual system in [DESIGN.md](DESIGN.md): a 
 
 ## CLI setup
 
+Automated entries now require their planned target to cover estimated round-trip costs, both at submission and at fill time. Manual tickets retain their existing policy. No new model or timeframe is promoted from the research results. Run `python scripts/pre_market_check.py` for read-only service and market-session checks; see [pre-market operation](docs/pre-market.md).
+
 The **Stocks / charts** workspace adds NSE symbol search, official constituent refresh, cached/downloaded stock history, five timeframes, indicator toggles and direct history-to-replay loading. The default stock is RELIANCE. Data timestamps and stale status are explicit; this is historical data, not a verified live feed. TradingView links open its full website because its public widget market list omits NSE. See [stock charts and data boundaries](docs/stock-charts.md).
 
 Python 3.11+ and Node.js 22+ are supported targets. Linux CI verifies tests and the production build; local interactive browser smoke was performed on Windows.

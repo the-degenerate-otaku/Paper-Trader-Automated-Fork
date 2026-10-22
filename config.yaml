@@ -1,5 +1,6 @@
 mode: paper
 auto_paper:
+  require_cost_coverage: true
   cpu_threads: 4
   poll_seconds: 10
   mover_count: 50

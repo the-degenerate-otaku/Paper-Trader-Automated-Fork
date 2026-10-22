@@ -89,6 +89,58 @@ def test_candidate_cost_report_and_rejected_order_are_persisted(live):
     assert "target_cost_inr" in payload and paper.config_hash in payload
 
 
+def test_automated_cost_guard_does_not_change_manual_tickets(live):
+    paper, clock = live
+    tick(paper, clock)
+    paper.settings.auto_paper.require_cost_coverage = True
+    assert not paper.settings.entry_economics.enabled
+    blocked = paper.submit(
+        ticket(product="MIS", stop_price="98", target_price="100.05"), automated=True
+    )
+    assert "TARGET_CONSUMED_BY_COSTS" in blocked["vetoes"]
+    assert Decimal(blocked["economics"]["net_target_profit_inr"]) < 0
+    manual = paper.submit(ticket(product="MIS", stop_price="98"))
+    assert manual["vetoes"] == []
+    assert not paper.exchange.orders[manual["id"]].context.enforce_entry_economics
+
+
+def test_automated_guard_survives_persistence_quote_refresh_and_flag_change(live):
+    paper, clock = live
+    tick(paper, clock)
+    paper.settings.auto_paper.require_cost_coverage = True
+    accepted = paper.submit(
+        ticket(product="MIS", stop_price="98", target_price="101"), automated=True
+    )
+    assert accepted["vetoes"] == []
+    identifier = accepted["id"]
+    restored = LivePaper(paper.settings, paper.database, lambda: clock[0])
+    assert restored.exchange.orders[identifier].context.enforce_entry_economics
+    paper.settings.auto_paper.require_cost_coverage = False
+    tick(paper, clock, price="100.90", volume=12000, seconds=2)
+    pending = paper.exchange.orders[identifier]
+    assert pending.context.enforce_entry_economics
+    assert pending.status == "REJECTED"
+    assert not paper.exchange.portfolio.positions
+    assert "TARGET_CONSUMED_BY_COSTS" in paper.exchange.veto_log[-1]["reasons"]
+
+
+def test_automated_reductions_bypass_cost_guard(live):
+    paper, clock = live
+    tick(paper, clock)
+    paper.settings.auto_paper.require_cost_coverage = True
+    result = paper.submit(
+        ticket(product="MIS", stop_price="98", target_price="110"), automated=True
+    )
+    assert result["vetoes"] == []
+    tick(paper, clock, volume=12000, seconds=2)
+    exit_result = paper.submit(
+        ticket(product="MIS", side="SELL", reduce_only=True, stop_price=None), automated=True
+    )
+    assert exit_result["vetoes"] == []
+    tick(paper, clock, volume=14000, seconds=2)
+    assert not paper.exchange.portfolio.positions
+
+
 def test_risk_budget_reports_open_and_pending_planned_risk_after_restart(live):
     paper, clock = live
     tick(paper, clock)
