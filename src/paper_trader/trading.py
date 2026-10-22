@@ -135,6 +135,13 @@ class ChargesCalculator:
 
 
 @dataclass
+class ProtectiveExit:
+    id: str = field(default_factory=lambda: uuid4().hex)
+    turnover: Decimal = Decimal(0)
+    brokerage: Decimal = Decimal(0)
+
+
+@dataclass
 class Position:
     symbol: str
     product: Product
@@ -148,6 +155,7 @@ class Position:
     leverage: Decimal
     entry_order_id: str
     trailing_distance: Decimal | None = None
+    protective_exits: dict[str, ProtectiveExit] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -233,6 +241,23 @@ class Portfolio:
             self.current_week, self.weekly_start = week, self.equity
         self.peak_equity = max(self.peak_equity, self.equity)
 
+    def reconcile_loss_streak(self) -> None:
+        active = {position.entry_order_id for position in self.positions.values()}
+        grouped: dict[str, tuple[Decimal, datetime]] = {}
+        for trade in self.closed_trades:
+            identifier = str(trade["entry_order_id"])
+            if identifier in active:
+                continue
+            at = aware(datetime.fromisoformat(str(trade["closed_at"])))
+            total, last = grouped.get(identifier, (Decimal(0), at))
+            grouped[identifier] = total + Decimal(str(trade["pnl"])), max(last, at)
+        self.consecutive_losses = 0
+        for pnl, _ in sorted(grouped.values(), key=lambda result: result[1], reverse=True):
+            if pnl >= 0:
+                break
+            self.consecutive_losses += 1
+        self.last_loss_at = max((at for pnl, at in grouped.values() if pnl < 0), default=None)
+
     def apply(self, fill: Fill, order: Order, sector: str, leverage: Decimal) -> None:
         key = (fill.symbol, fill.product)
         sign = 1 if fill.side == "BUY" else -1
@@ -265,12 +290,20 @@ class Portfolio:
                     "charges": str(allocation + fill.charges.total),
                 }
             )
-            self.consecutive_losses = self.consecutive_losses + 1 if pnl < 0 else 0
-            if pnl < 0:
-                self.last_loss_at = fill.at
             position.quantity += sign * fill.quantity
             position.entry_charges -= allocation
             if position.quantity == 0:
+                trade_pnl = sum(
+                    (
+                        Decimal(str(trade["pnl"]))
+                        for trade in self.closed_trades
+                        if trade["entry_order_id"] == position.entry_order_id
+                    ),
+                    Decimal(0),
+                )
+                self.consecutive_losses = self.consecutive_losses + 1 if trade_pnl < 0 else 0
+                if trade_pnl < 0:
+                    self.last_loss_at = fill.at
                 del self.positions[key]
         else:
             if order.stop_price is None:
@@ -850,7 +883,30 @@ class PaperExchange:
                     price, reason = candle.close, "MIS_SQUAREOFF"
                 slip = price * self.settings.execution.slippage_bps / 10000
                 price = tick_round(price + (-slip if long else slip), tick, side)
+                day = candle.closed_at.astimezone(self.calendar.zone).date()
+                key = f"{reason}:{day}"
+                if key not in position.protective_exits:
+                    closed_times = {
+                        datetime.fromisoformat(str(trade["closed_at"]))
+                        for trade in self.portfolio.closed_trades
+                        if trade["entry_order_id"] == position.entry_order_id
+                    }
+                    prior = [
+                        fill
+                        for fill in self.portfolio.fills
+                        if fill.symbol == position.symbol
+                        and fill.reason == reason
+                        and fill.at in closed_times
+                        and fill.at.astimezone(self.calendar.zone).date() == day
+                    ]
+                    position.protective_exits[key] = ProtectiveExit(
+                        id=prior[0].order_id if prior else uuid4().hex,
+                        turnover=sum((f.price * f.quantity for f in prior), Decimal(0)),
+                        brokerage=sum((f.charges.items["brokerage"] for f in prior), Decimal(0)),
+                    )
+                protection = position.protective_exits[key]
                 order = Order(
+                    id=protection.id,
                     symbol=position.symbol,
                     side=side,
                     product=position.product,
@@ -858,14 +914,17 @@ class PaperExchange:
                     signal_at=candle.closed_at,
                     reduce_only=True,
                 )
-                day = candle.closed_at.astimezone(self.calendar.zone).date()
                 fees = self.charges.calculate(
                     price * order.quantity,
                     side,
                     position.product,
                     day,
+                    previous_turnover=protection.turnover,
+                    previous_brokerage=protection.brokerage,
                     dp_already_charged=(position.symbol, day) in self.dp_days,
                 )
+                protection.turnover += price * order.quantity
+                protection.brokerage += fees.items["brokerage"]
                 self.portfolio.apply(
                     Fill(
                         order.id,

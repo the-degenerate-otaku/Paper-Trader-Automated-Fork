@@ -1,0 +1,29 @@
+warmup: 220
+probe_offsets: [0, 20]
+horizon: 30
+initial_price: 1000
+inference_timeout_ms: 30000
+candidate_net_reward_risk: 1
+candidate_target_cost_multiple: 2
+candidate_port: 2084
+folds:
+  train: 2026-10-13
+  validation: 2026-10-14
+  test: 2026-10-15
+seeds:
+  train: 101
+  validation: 202
+  test: 303
+movements:
+  - {name: rising_trend, drift_bps: 2, noise_bps: 0.5}
+  - {name: falling_trend, drift_bps: -2, noise_bps: 0.5}
+  - {name: sideways_chop, drift_bps: 0, noise_bps: 2}
+  - {name: volatile_rally, drift_bps: 2, noise_bps: 8}
+  - {name: volatile_selloff, drift_bps: -2, noise_bps: 8}
+  - {name: gap_up, drift_bps: 0.5, noise_bps: 1, shock_bps: 150}
+  - {name: gap_down, drift_bps: -0.5, noise_bps: 1, shock_bps: -150}
+  - {name: failed_breakout, drift_bps: 1.5, noise_bps: 2, shock_bps: 70, reverse_after_shock: true}
+  - {name: liquidity_drought, drift_bps: 1, noise_bps: 1, volume: 10}
+  - {name: high_slippage, drift_bps: 1, noise_bps: 1, slippage_factor: 3}
+  - {name: missing_candles, drift_bps: 1, noise_bps: 1, missing_bar: true}
+  - {name: inference_outage, drift_bps: 1, noise_bps: 1, inference_outage: true}

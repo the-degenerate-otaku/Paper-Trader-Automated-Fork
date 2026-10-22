@@ -276,8 +276,11 @@ def export_rows(rows: list[Outcome], path: Path) -> int:
                     "versions": row.versions,
                     "label_spec": row.label_spec,
                     "data_sources": row.data_sources,
-                    "label_rule": "Next-open entry; ATR stop and reward/risk target; "
-                    "stop first on ambiguous bars; neutral if no target wins within horizon",
+                    "label_rule": row.label_spec.get(
+                        "definition",
+                        "Next-open entry; ATR stop and reward/risk target; "
+                        "stop first on ambiguous bars; neutral if no target wins within horizon",
+                    ),
                 },
             }
             handle.write(json.dumps(record, ensure_ascii=False, allow_nan=False) + "\n")

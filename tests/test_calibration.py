@@ -87,6 +87,10 @@ def test_laya_notebook_gold_export_and_extreme_temperature(tmp_path: Path) -> No
     assert record["questions"]["direction"]["type"] == "choice"
     assert record["gold"]["direction"]["probabilities"][record["gold"]["direction"]["label"]] == 1
     assert "storage" not in record["meta"]
+    custom = sample_rows()[0]
+    custom.label_spec["definition"] = "Cost-aware counterfactual label"
+    export_rows([custom], path)
+    assert json.loads(path.read_text())["meta"]["label_rule"] == custom.label_spec["definition"]
     for temperature in (1e-320, 1e308):
         probabilities = distribution(
             {"probabilities": {"LONG": 0.9, "SHORT": 0.05, "NEUTRAL": 0.05}},

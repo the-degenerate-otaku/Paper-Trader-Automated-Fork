@@ -177,6 +177,7 @@ class LivePaper:
         p.positions = {
             (position.symbol, position.product): position for position in saved.positions
         }
+        p.reconcile_loss_streak()
         self.exchange = PaperExchange(self.settings, self.calendar, p)
         self.exchange.orders = {pending.order.id: pending for pending in saved.orders}
         self.exchange.dp_days = set(saved.dp_days)
