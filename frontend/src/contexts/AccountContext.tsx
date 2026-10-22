@@ -2,10 +2,8 @@ import { apiFetch, remoteMode } from "../connection";
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import type { AccountSummary, AccountsResponse } from '../types/account';
 
-// API base URL configuration - use direct backend URL during development
 const API_BASE_URL = '/api/v1/trading';
 
-// Account Context Types
 export interface AccountContextState {
   selectedAccount: AccountSummary | null;
   availableAccounts: AccountSummary[];
@@ -22,9 +20,8 @@ export interface AccountContextActions {
   clearError: () => void;
 }
 
-export interface AccountContextValue extends AccountContextState, AccountContextActions {}
+export type AccountContextValue = AccountContextState & AccountContextActions;
 
-// Action Types
 type AccountAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
@@ -33,7 +30,6 @@ type AccountAction =
   | { type: 'CLEAR_ACCOUNT' }
   | { type: 'SET_INITIALIZED'; payload: boolean };
 
-// Initial State
 const initialState: AccountContextState = {
   selectedAccount: null,
   availableAccounts: [],
@@ -42,7 +38,6 @@ const initialState: AccountContextState = {
   isInitialized: false,
 };
 
-// Reducer Function
 function accountReducer(state: AccountContextState, action: AccountAction): AccountContextState {
   switch (action.type) {
     case 'SET_LOADING':
@@ -62,19 +57,17 @@ function accountReducer(state: AccountContextState, action: AccountAction): Acco
   }
 }
 
-// Local Storage Keys
 const SELECTED_ACCOUNT_KEY = 'openPaperTrading_selectedAccount';
 const ACCOUNTS_CACHE_KEY = 'openPaperTrading_accountsCache';
 const CACHE_EXPIRY_KEY = 'openPaperTrading_cacheExpiry';
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000;
 
-// Utility Functions
 const saveToLocalStorage = (key: string, data: unknown) => {
   if (remoteMode) return;
   try {
     localStorage.setItem(key, JSON.stringify(data));
-  } catch (error) {
-    console.warn('Failed to save to localStorage:', error);
+  } catch {
+    return;
   }
 };
 
@@ -83,8 +76,7 @@ const loadFromLocalStorage = (key: string) => {
   try {
     const item = localStorage.getItem(key);
     return item ? JSON.parse(item) : null;
-  } catch (error) {
-    console.warn('Failed to load from localStorage:', error);
+  } catch {
     return null;
   }
 };
@@ -94,7 +86,6 @@ const isCacheValid = (): boolean => {
   return expiry ? new Date().getTime() < expiry : false;
 };
 
-// API Functions
 const fetchAccounts = async (): Promise<AccountSummary[]> => {
   const response = await apiFetch(`${API_BASE_URL}/accounts`);
   if (!response.ok) {
@@ -118,10 +109,8 @@ const validateAccountExists = async (accountId: string): Promise<boolean> => {
   }
 };
 
-// Create Context
 const AccountContext = createContext<AccountContextValue | undefined>(undefined);
 
-// Account Provider Component
 interface AccountProviderProps {
   children: React.ReactNode;
 }
@@ -129,36 +118,33 @@ interface AccountProviderProps {
 export const AccountProvider: React.FC<AccountProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(accountReducer, initialState);
 
-  // Load cached data on mount
   useEffect(() => {
     const loadCachedData = async () => {
       dispatch({ type: 'SET_LOADING', payload: true });
       
       try {
-        // Load cached accounts if valid
+
         if (isCacheValid()) {
           const cachedAccounts = loadFromLocalStorage(ACCOUNTS_CACHE_KEY);
           if (cachedAccounts && Array.isArray(cachedAccounts)) {
             dispatch({ type: 'SET_ACCOUNTS', payload: cachedAccounts });
           }
         } else {
-          // Fetch fresh accounts
+
           const accounts = await fetchAccounts();
           dispatch({ type: 'SET_ACCOUNTS', payload: accounts });
-          
-          // Cache the results
+
           saveToLocalStorage(ACCOUNTS_CACHE_KEY, accounts);
           saveToLocalStorage(CACHE_EXPIRY_KEY, new Date().getTime() + CACHE_DURATION);
         }
 
-        // Load selected account and validate it still exists
         const savedAccount = loadFromLocalStorage(SELECTED_ACCOUNT_KEY);
         if (savedAccount) {
           const exists = await validateAccountExists(savedAccount.id);
           if (exists) {
             dispatch({ type: 'SELECT_ACCOUNT', payload: savedAccount });
           } else {
-            // Account no longer exists, clear from storage
+
             localStorage.removeItem(SELECTED_ACCOUNT_KEY);
             dispatch({ type: 'SET_ERROR', payload: 'Previously selected account no longer exists' });
           }
@@ -166,7 +152,7 @@ export const AccountProvider: React.FC<AccountProviderProps> = ({ children }) =>
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Failed to load account data';
         dispatch({ type: 'SET_ERROR', payload: errorMessage });
-        console.error('Error loading account data:', error);
+
       } finally {
         dispatch({ type: 'SET_INITIALIZED', payload: true });
       }
@@ -175,13 +161,11 @@ export const AccountProvider: React.FC<AccountProviderProps> = ({ children }) =>
     loadCachedData();
   }, []);
 
-  // Action Implementations
   const selectAccount = useCallback((account: AccountSummary) => {
     dispatch({ type: 'SELECT_ACCOUNT', payload: account });
     saveToLocalStorage(SELECTED_ACCOUNT_KEY, account);
-    
-    // Clear any existing errors
     dispatch({ type: 'SET_ERROR', payload: null });
+
   }, []);
 
   const clearAccount = useCallback(() => {
@@ -195,29 +179,23 @@ export const AccountProvider: React.FC<AccountProviderProps> = ({ children }) =>
     try {
       const accounts = await fetchAccounts();
       dispatch({ type: 'SET_ACCOUNTS', payload: accounts });
-      
-      // Update cache
+
       saveToLocalStorage(ACCOUNTS_CACHE_KEY, accounts);
       saveToLocalStorage(CACHE_EXPIRY_KEY, new Date().getTime() + CACHE_DURATION);
-      
-      // Validate selected account still exists
+
       if (state.selectedAccount) {
-        const stillExists = accounts.some(account => account.id === state.selectedAccount?.id);
-        if (!stillExists) {
+        const updatedAccount = accounts.find(account => account.id === state.selectedAccount?.id);
+        if (updatedAccount) {
+          selectAccount(updatedAccount);
+        } else {
           clearAccount();
           dispatch({ type: 'SET_ERROR', payload: 'Selected account was deleted' });
-        } else {
-          // Update selected account with fresh data
-          const updatedAccount = accounts.find(account => account.id === state.selectedAccount?.id);
-          if (updatedAccount) {
-            selectAccount(updatedAccount);
-          }
         }
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to refresh accounts';
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
-      console.error('Error refreshing accounts:', error);
+
     }
   }, [state.selectedAccount, selectAccount, clearAccount]);
 
@@ -229,15 +207,14 @@ export const AccountProvider: React.FC<AccountProviderProps> = ({ children }) =>
     dispatch({ type: 'SET_ERROR', payload: null });
   }, []);
 
-  // Context Value
   const contextValue: AccountContextValue = {
-    // State
+
     selectedAccount: state.selectedAccount,
     availableAccounts: state.availableAccounts,
     isLoading: state.isLoading,
     error: state.error,
     isInitialized: state.isInitialized,
-    // Actions
+
     selectAccount,
     clearAccount,
     refreshAccounts,
@@ -252,7 +229,6 @@ export const AccountProvider: React.FC<AccountProviderProps> = ({ children }) =>
   );
 };
 
-// Custom Hook
 export const useAccountContext = (): AccountContextValue => {
   const context = useContext(AccountContext);
   if (context === undefined) {
@@ -261,7 +237,6 @@ export const useAccountContext = (): AccountContextValue => {
   return context;
 };
 
-// Hook for checking if an account is selected
 export const useRequireAccount = (): AccountSummary => {
   const { selectedAccount } = useAccountContext();
   if (!selectedAccount) {

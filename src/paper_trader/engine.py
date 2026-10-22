@@ -505,12 +505,9 @@ def metrics(
     peaks = np.maximum.accumulate(equity)
     drawdowns = (peaks - equity) / peaks
     daily = {}
+    zone = TradingCalendar.load(settings).zone if curve else None
     for point in curve:
-        day = (
-            datetime.fromisoformat(str(point["at"]))
-            .astimezone(TradingCalendar.load(settings).zone)
-            .date()
-        )
+        day = datetime.fromisoformat(str(point["at"])).astimezone(zone).date()
         daily[day] = float(str(point["equity"]))
     daily_equity = np.array([initial, *daily.values()])
     returns = np.diff(daily_equity) / daily_equity[:-1]

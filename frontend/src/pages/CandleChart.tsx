@@ -254,14 +254,11 @@ export default function CandleChart({
                     })),
             );
         }
+        const openedTimes = new Set(bars.map((bar) => Date.parse(bar.opened_at)));
         createSeriesMarkers(
             series,
             fills
-                .filter((f) =>
-                    bars.some(
-                        (b) => Date.parse(b.opened_at) === Date.parse(f.at),
-                    ),
-                )
+                .filter((f) => openedTimes.has(Date.parse(f.at)))
                 .map((f) => ({
                     time: (Date.parse(f.at) / 1000) as UTCTimestamp,
                     position:

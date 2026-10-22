@@ -375,16 +375,17 @@ def adjusted(
 ) -> tuple[Candle, ...]:
     now = aware(at)
     result = []
+    ordered_actions = sorted(actions, key=lambda a: a.ex_date)
+    today = now.astimezone(calendar.zone).date()
     for candle in candles:
         if candle.closed_at > now:
             raise ValueError("Cannot adjust future candles")
         prices = {key: getattr(candle, key) for key in ("open", "high", "low", "close")}
         volume = Decimal(candle.volume)
         candle_day = candle.opened_at.astimezone(calendar.zone).date()
-        for action in sorted(actions, key=lambda a: a.ex_date):
+        for action in ordered_actions:
             if action.symbol != candle.symbol or not (
-                candle_day < action.ex_date <= now.astimezone(calendar.zone).date()
-                and action.known_at <= now
+                candle_day < action.ex_date <= today and action.known_at <= now
             ):
                 continue
             if action.kind in {"split", "bonus"} and candle.price_basis == "as_traded":

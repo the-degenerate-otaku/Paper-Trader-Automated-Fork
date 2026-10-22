@@ -15,7 +15,6 @@ import type {
   PortfolioSummaryResponse
 } from '../types';
 
-// Re-export account API for backwards compatibility
 export { 
   getAllAccounts,
   createAccount,
@@ -25,9 +24,7 @@ export {
   getAccountsSummary
 } from './accountApi';
 
-// Types moved to types/account.ts
 
-// Use direct backend URL during development if proxy not working
 const baseURL = '/api/v1/trading';
 
 const apiClient = axios.create({
@@ -37,23 +34,19 @@ const apiClient = axios.create({
   },
 });
 
-// Add response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('API Error:', error);
-    
-    // Handle network errors
+
+
     if (!error.response) {
       throw new Error('Network error - please check your connection and ensure the backend server is running');
     }
 
-    // Handle server errors
     if (error.response.status >= 500) {
       throw new Error('Server error - please try again later');
     }
 
-    // Handle client errors
     if (error.response.status >= 400) {
       const message = error.response.data?.message || error.response.data?.detail || 'Request failed';
       throw new Error(message);
@@ -63,7 +56,6 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Account functions moved to accountApi.ts - using re-exports above
 
 export const getAccountInfo = async (accountId?: string) => {
   const response = await apiClient.get('/account/info', {
@@ -103,7 +95,6 @@ export const cancelOrder = async (orderId: string) => {
   return response.data;
 };
 
-// Market Data API functions
 export const searchStocks = async (query: string): Promise<StockSearchResponse> => {
   const response = await apiClient.get(`/stocks/search`, {
     params: { query }
@@ -126,7 +117,6 @@ export const getStockPrice = async (symbol: string): Promise<StockPriceResponse>
   return response.data;
 };
 
-// Additional Market Data API functions
 export const getPriceHistory = async (symbol: string, period: string = 'week'): Promise<PriceHistoryResponse> => {
   const response = await apiClient.get(`/stock/history/${symbol}`, {
     params: { period }
@@ -144,7 +134,6 @@ export const getStockEvents = async (symbol: string): Promise<StockEventsRespons
   return response.data;
 };
 
-// Options API functions
 export const getOptionsChain = async (underlying: string, expirationDate?: string): Promise<OptionsChainResponse> => {
   const response = await apiClient.get(`/options/chain/${underlying}`, {
     params: expirationDate ? { expiration_date: expirationDate } : {}
@@ -174,7 +163,6 @@ export const getOptionStrikes = async (underlying: string, expirationDate?: stri
   return response.data;
 };
 
-// Order History API functions
 export const getStockOrders = async (accountId?: string): Promise<StockOrdersResponse> => {
   const response = await apiClient.get('/orders/stocks', {
     params: accountId ? { account_id: accountId } : {}

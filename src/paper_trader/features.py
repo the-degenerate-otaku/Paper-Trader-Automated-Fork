@@ -4,6 +4,7 @@ import math
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from itertools import pairwise
 
 import numpy as np
 import pandas as pd
@@ -69,7 +70,7 @@ class FeatureEngine:
         for series in (candles, benchmark, bank_benchmark, sector_benchmark, vix):
             if any(c.closed_at > at for c in series):
                 raise ValueError("Feature lookahead rejected")
-            if list(series) != sorted(series, key=lambda c: c.closed_at):
+            if any(a.closed_at > b.closed_at for a, b in pairwise(series)):
                 raise ValueError("Feature input must be chronological")
         if not candles:
             raise ValueError("Feature engine requires closed candles")
@@ -306,11 +307,15 @@ class FeatureEngine:
         previous_upper = previous_lower = previous_close = 0.0
         line = None
         bullish = True
-        for i in range(len(frame)):
-            if not math.isfinite(float(atr.iloc[i])):
+        atr_values = atr.to_numpy(copy=False)
+        for i, (high, low, close) in enumerate(
+            zip(frame.high, frame.low, frame.close, strict=True)
+        ):
+            atr_value = float(atr_values[i])
+            if not math.isfinite(atr_value):
                 continue
-            mid = (float(frame.high.iloc[i]) + float(frame.low.iloc[i])) / 2
-            spread = self.settings.features.supertrend_multiple * float(atr.iloc[i])
+            mid = (float(high) + float(low)) / 2
+            spread = self.settings.features.supertrend_multiple * atr_value
             upper, lower = mid + spread, mid - spread
             if line is not None:
                 upper = (
@@ -324,15 +329,13 @@ class FeatureEngine:
                     else previous_lower
                 )
                 bullish = (
-                    float(frame.close.iloc[i]) >= previous_lower
-                    if bullish
-                    else float(frame.close.iloc[i]) > previous_upper
+                    float(close) >= previous_lower if bullish else float(close) > previous_upper
                 )
             line = lower if bullish else upper
             previous_upper, previous_lower, previous_close = (
                 upper,
                 lower,
-                float(frame.close.iloc[i]),
+                float(close),
             )
         return line
 

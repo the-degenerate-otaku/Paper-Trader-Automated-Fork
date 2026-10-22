@@ -6,21 +6,17 @@ import { getPositions } from '../services/apiClient';
 import { useAccountContext } from '../contexts/AccountContext';
 import type { Position } from '../types';
 
-// Enhanced Position interface with unique ID for DataGrid
 interface PositionWithId extends Position {
   uniqueId: string;
 }
 
-// Generate unique ID for each position row
 const generateUniqueId = (position: Position): string => {
   const baseId = position.symbol;
-  
-  // For options, include strike and expiration to ensure uniqueness
+
   if (position.strike && position.expiration_date) {
     return `${baseId}_${position.strike}_${position.expiration_date.replace(/-/g, '')}`;
   }
-  
-  // For stocks or positions without options data, use symbol with asset type
+
   return `${baseId}_${position.asset_type || 'stock'}`;
 };
 
@@ -129,17 +125,16 @@ const PositionsTable: React.FC = () => {
       try {
         setLoading(true);
         const data = await getPositions(selectedAccount.id);
-        
-        // Extract positions array from the response and add unique IDs
+
         const positionsWithIds: PositionWithId[] = (data.positions || []).map((position: Position) => ({
           ...position,
           uniqueId: generateUniqueId(position)
         }));
         
         setPositions(positionsWithIds);
-      } catch (err) {
+      } catch {
         setError('Failed to fetch positions. Please try again later.');
-        console.error('Error fetching positions:', err);
+
       } finally {
         setLoading(false);
       }
@@ -169,7 +164,6 @@ const PositionsTable: React.FC = () => {
     );
   }
 
-  // Handle empty positions
   if (!positions || positions.length === 0) {
     return (
       <Paper style={{ height: 400, width: '100%' }}>

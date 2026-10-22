@@ -8,7 +8,6 @@ import type {
   AccountSummary
 } from '../types/account';
 
-// Use direct backend URL during development if proxy not working
 const baseURL = '/api/v1/trading';
 
 const apiClient = axios.create({
@@ -18,23 +17,19 @@ const apiClient = axios.create({
   },
 });
 
-// Add response interceptor for error handling
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('API Error:', error);
-    
-    // Handle network errors
+
+
     if (!error.response) {
       throw new Error('Network error - please check your connection');
     }
 
-    // Handle server errors
     if (error.response.status >= 500) {
       throw new Error('Server error - please try again later');
     }
 
-    // Handle client errors
     if (error.response.status >= 400) {
       const message = error.response.data?.message || error.response.data?.detail || 'Request failed';
       throw new Error(message);

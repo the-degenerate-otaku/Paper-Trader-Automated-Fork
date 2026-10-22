@@ -21,11 +21,11 @@ export default tseslint.config([
     },
   },
   {
-    files: ['src/contexts/AccountContext.tsx'],
+    files: ['src/contexts/AccountContext.tsx', 'src/contexts/LoadingContext.tsx'],
     rules: {
       'react-refresh/only-export-components': ['error', {
         allowConstantExport: true,
-        allowExportNames: ['useAccountContext', 'useRequireAccount'],
+        allowExportNames: ['useAccountContext', 'useRequireAccount', 'useLoading', 'useComponentLoading'],
       }],
     },
   },

@@ -4,6 +4,8 @@ Local Nifty 50 paper portfolio and buy/sell terminal for Windows and Linux. Virt
 
 ## Status
 
+The 2026-10-21 cleanup removes unreachable inherited frontend modules and three unused dependencies. All remaining frontend source is linted during production builds. Indicator calculation and report metrics avoid repeated indexing and calendar reads; trading rules and API routes are unchanged.
+
 The research phase was merged into main at the user's request. Comparison settings remain opt-in. A [GitHub Pages frontend and protected PC gateway](docs/phone-access.md) support phone access without moving the trading engine or model to a cloud host.
 
 A separate [research comparison](docs/research-review.md) is prepared for review, with [isolated baseline and candidate profiles](profiles/README.md). It has not been activated or promoted into the default paper account; the model weights and active config remain unchanged.

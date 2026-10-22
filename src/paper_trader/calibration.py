@@ -77,8 +77,8 @@ def outcomes(database: Database, run_id: str, as_of: datetime, settings: Setting
         raise ValueError("Unknown run")
     recorded = Settings.model_validate_json(run["config_json"])
     versions = tuple(dict.fromkeys(json.loads(run["data_version"]).values()))
-    store = CandleStore(database, TradingCalendar.load(recorded))
     calendar = TradingCalendar.load(recorded)
+    store = CandleStore(database, calendar)
     series: dict[str, tuple[Candle, ...]] = {}
     for symbol in {row["symbol"] for row in rows}:
         collected: dict[tuple[str, str, datetime], Candle] = {}

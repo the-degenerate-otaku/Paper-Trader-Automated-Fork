@@ -1,4 +1,4 @@
-// Re-export account types for backwards compatibility
+
 export type {
   AccountInfo,
   AccountSummary,
@@ -24,14 +24,12 @@ export interface Position {
   realized_pnl?: number;
   asset_type?: string;
   side?: string;
-  
-  // Options-specific fields
+
   option_type: string | null;
   strike: number | null;
   expiration_date: string | null;
   underlying_symbol: string | null;
-  
-  // Greeks (for options positions)
+
   delta?: number | null;
   gamma?: number | null;
   theta?: number | null;
@@ -75,7 +73,7 @@ export interface HealthStatus {
   service: string;
   status: 'healthy' | 'unhealthy' | 'error' | 'unknown';
   statusCode?: number;
-  response?: any;
+  response?: unknown;
   error?: string;
   timestamp?: number;
 }
@@ -87,7 +85,6 @@ export interface SystemHealth {
   overall: 'healthy' | 'degraded' | 'down';
 }
 
-// Market Data Types
 export interface StockSearchResult {
   symbol: string;
   name: string;
@@ -158,7 +155,6 @@ export interface StockPriceResponse {
   message: string;
 }
 
-// Price History Types
 export interface PriceHistoryPoint {
   timestamp?: string;
   date?: string; // API uses 'date' instead of 'timestamp'
@@ -185,7 +181,6 @@ export interface PriceHistoryResponse {
   message: string;
 }
 
-// Analyst Ratings Types
 export interface AnalystRating {
   rating: string;
   target_price: number;
@@ -213,7 +208,7 @@ export interface StockRatingsData {
   };
   last_updated: string;
   message?: string;
-  // Legacy fields for backwards compatibility
+
   summary?: {
     buy: number;
     hold: number;
@@ -231,7 +226,6 @@ export interface StockRatingsResponse {
   message: string;
 }
 
-// Corporate Events Types
 export interface CorporateEvent {
   type: string;
   date: string;
@@ -251,7 +245,6 @@ export interface StockEventsResponse {
   message: string;
 }
 
-// Options Types
 export interface OptionQuote {
   symbol: string;
   strike: number;
@@ -305,7 +298,6 @@ export interface OptionGreeksResponse {
   message: string;
 }
 
-// Order History Types
 export interface OrderHistoryItem extends Order {
   filled_quantity?: number;
   average_filled_price?: number;
@@ -328,7 +320,6 @@ export interface OptionsOrdersResponse {
   message: string;
 }
 
-// Portfolio Types
 export interface PortfolioSummary {
   total_value: number | null;
   cash_balance: number | null;

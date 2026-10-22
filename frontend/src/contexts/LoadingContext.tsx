@@ -24,14 +24,12 @@ export const LoadingProvider: React.FC<LoadingProviderProps> = ({ children }) =>
   const [loadingStates, setLoadingStates] = useState<LoadingState>({});
 
   const setLoading = useCallback((key: string, loading: boolean) => {
-    setLoadingStates(prev => ({
-      ...prev,
-      [key]: loading
-    }));
+    setLoadingStates(prev => prev[key] === loading ? prev : { ...prev, [key]: loading });
   }, []);
 
   const clearLoading = useCallback((key: string) => {
     setLoadingStates(prev => {
+      if (!(key in prev)) return prev;
       const newState = { ...prev };
       delete newState[key];
       return newState;
@@ -74,7 +72,6 @@ export const useLoading = (): LoadingContextType => {
   return context;
 };
 
-// Hook for managing individual component loading states
 export const useComponentLoading = (componentKey: string) => {
   const { setLoading, isLoading, clearLoading } = useLoading();
 

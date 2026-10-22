@@ -6,7 +6,7 @@
   "scripts": {
     "test:connection": "node --test tests/connection.test.mjs",
     "dev": "vite",
-    "build": "tsc -b && npm run lint:paper && vite build",
+    "build": "tsc -b && npm run lint && vite build",
     "lint:paper": "eslint src/pages/PaperTerminal.tsx src/App.tsx",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -18,14 +18,11 @@
     "@mui/icons-material": "^6.1.6",
     "@mui/material": "^6.1.6",
     "@mui/x-data-grid": "^8.9.2",
-    "@mui/x-date-pickers": "^8.9.2",
     "axios": "^1.11.0",
-    "date-fns": "^2.30.0",
     "lightweight-charts": "^5.2.1",
     "lucide-react": "^1.61.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.7.0",
     "recharts": "^2.15.4"
   },
   "devDependencies": {

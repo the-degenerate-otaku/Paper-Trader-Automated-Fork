@@ -237,3 +237,33 @@ Verification covers indicator reference values, flat/zero-loss RSI, incomplete p
 All entries, including queued orders at fill time, pass deterministic risk validation. Tested adversarial cases include CNC shorting, reference-index trading, missing stops, zero/negative quantities, NaN reference prices, oversized positions, excessive per-trade loss, missing liquidity, daily/weekly/drawdown limits, cooldown, duplicate order IDs, circuit and halt conditions, and results blackouts. No live venue adapter exists. Protective exits are independent of AI and remain subject to simulated liquidity. Short-sale proceeds do not become spendable cash.
 
 Smoke and numerical checks cover entry-to-exit account reconciliation for MIS longs and shorts, delivery cash accounting, multi-bar partial fills, per-order brokerage caps, DP deduplication, next-bar entry, triggered/limit orders, gap-through stops, conservative ambiguous bars, trailing protection, and MIS square-off. Four fee examples are checked against hand calculations. See [charges.md](charges.md) for dated sources and approximation boundaries. Full suite: 83 tests; source, lint and strict type checks pass.
+
+
+## 2026-10-21 code-size and runtime cleanup
+
+Audited the 415 tracked-file snapshot at e1777df1ef82e38c7d438c1cfbc3382a950627ca.
+Removed 63 unreachable frontend source/assets/documentation files and one CSS import wrapper;
+TypeScript parser traversal independently confirmed the source reachability findings.
+Removed the date-picker, date-fns and router direct dependencies used only by those modules.
+Kept public API compatibility exports, migration history and the explicitly archived upstream reference.
+No trading thresholds, financial arithmetic, persistence schema, origin checks or risk vetoes changed.
+
+Optimized Supertrend array access, chronological validation, corporate-action sorting,
+chart marker timestamp lookup, account refresh lookup and redundant loading-state updates.
+Calendar configuration is loaded once per metrics report and once per calibration outcome pass.
+The primary workspace CSS is unchanged. Fonts now load from the document head.
+
+Validation: 191 backend tests; 95 exact feature/Supertrend comparisons and four exact metrics
+comparisons against the original implementation; three frontend connection tests; production
+build with full frontend lint; Ruff check/format, mypy and Bandit; 13 localhost HTTP boundary
+checks. npm audit and pip-audit reported no known vulnerabilities. Repository/history privacy
+scan found no blocking findings. The inherited Starlette/httpx test-client deprecation warning remains.
+
+Browser checks used an isolated database and disconnected feed at 390, 768 and 1440 CSS pixels.
+The primary terminal, tab navigation, research overview, synthetic replay and chart toggle worked.
+The research replay has existing narrow-screen horizontal overflow: the untouched baseline and
+refactor both measured 1316px scroll width at 390px viewport width. Preserved under the explicit
+no-visual-change constraint. No Lighthouse score, exhaustive pixel equivalence, real market feed,
+local model integration, Linux execution or remote GitHub CI verification is claimed for this pass.
+The existing research bundle remains approximately 1.43 MB uncompressed because its chart/grid
+libraries are active features. Archived code was statically scanned, not executed or refactored.

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Paper, Typography, Box, CircularProgress, Alert, Grid, Chip } from '@mui/material';
-import { TrendingUp, TrendingDown, TrendingFlat } from '@mui/icons-material';
+import TrendingUp from '@mui/icons-material/TrendingUp';
+import TrendingDown from '@mui/icons-material/TrendingDown';
+import TrendingFlat from '@mui/icons-material/TrendingFlat';
 import { getPortfolioSummary } from '../services/apiClient';
 import { useAccountContext } from '../contexts/AccountContext';
 import { useComponentLoading } from '../contexts/LoadingContext';
@@ -15,7 +17,7 @@ const PortfolioValue: React.FC = () => {
 
   useEffect(() => {
     const fetchPortfolio = async () => {
-      // Wait for account context to be initialized
+
       if (!isInitialized) {
         return;
       }
@@ -40,9 +42,8 @@ const PortfolioValue: React.FC = () => {
           setPortfolio(null);
         }
       } catch (err) {
-        console.error('Portfolio fetch error:', err);
-        
-        // Provide more specific error messages
+
+
         let errorMessage = 'Failed to fetch portfolio data';
         if (err instanceof Error) {
           if (err.message.includes('Network error')) {
