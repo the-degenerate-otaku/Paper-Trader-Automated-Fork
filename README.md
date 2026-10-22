@@ -10,6 +10,8 @@ An offline [Laya-versus-EMA ablation](docs/laya-ablation.md) compares identical 
 
 Accounting corrections and an isolated Laya scenario lab are available. Protective partial exits preserve brokerage caps; completed positions determine loss streaks. The initial synthetic comparison and calibration experiment do not establish a profitable strategy and are not promoted into the active profile. See [scenario lab](docs/scenario-lab.md).
 
+The [shared-portfolio replay](docs/session-replay.md) extends the one-minute/five-minute comparison to historical sessions and ten constructed opening, reversal, volatility, liquidity and outage cases. It uses the existing local Laya, separate EMA baselines, minute execution, frozen inputs and accounting checks. Research outputs remain private; no settings or model weights are promoted.
+
 The 2026-10-21 cleanup removes unreachable inherited frontend modules and three unused dependencies. All remaining frontend source is linted during production builds. Indicator calculation and report metrics avoid repeated indexing and calendar reads; trading rules and API routes are unchanged.
 
 The research phase was merged into main at the user's request. Comparison settings remain opt-in. A [GitHub Pages frontend and protected PC gateway](docs/phone-access.md) support phone access without moving the trading engine or model to a cloud host.

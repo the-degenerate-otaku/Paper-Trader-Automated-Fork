@@ -1,0 +1,53 @@
+historical_days: [2026-10-19, 2026-10-21, 2026-10-22]
+stress_day: 2026-10-22
+symbols: [HDFCBANK, INFY, RELIANCE]
+decision_times: ['09:10', '09:20', '10:00', '12:00', '14:40', '15:10', '15:31']
+new_hold_minutes: 25
+entry_expiry_minutes: 5
+decision_delay_seconds: 30
+inference_timeout_ms: 30000
+max_new_inferences: 240
+random_seed: 17
+scenarios:
+  - name: opening_gap_up
+    decisions: ['09:20', '09:40', '15:10']
+    shocks:
+      - {start: '09:15', end: '09:30', jump_bps: 200}
+  - name: opening_gap_down
+    decisions: ['09:20', '09:40', '15:10']
+    shocks:
+      - {start: '09:15', end: '09:30', jump_bps: -200}
+  - name: sharp_reversal
+    decisions: ['12:05', '12:20', '15:10']
+    shocks:
+      - {start: '12:00', end: '12:15', jump_bps: -150, drift_bps: -4}
+      - {start: '12:15', end: '12:30', jump_bps: 150, drift_bps: 4}
+  - name: extreme_volatility
+    decisions: ['12:05', '12:20', '15:10']
+    shocks:
+      - {start: '12:00', end: '12:30', noise_bps: 80}
+  - name: closing_reversal
+    decisions: ['14:40', '15:10', '15:31']
+    shocks:
+      - {start: '14:35', end: '14:50', jump_bps: -150, drift_bps: -5}
+      - {start: '14:50', end: '15:15', jump_bps: 100, drift_bps: 5}
+  - name: liquidity_drought
+    decisions: ['14:40', '15:10', '15:31']
+    shocks:
+      - {start: '14:35', end: '15:30', volume_multiplier: 0.001}
+  - name: execution_slippage
+    decisions: ['12:00', '12:20', '15:10']
+    shocks:
+      - {start: '11:55', end: '12:30', slippage_multiplier: 3}
+  - name: inference_outage
+    decisions: ['12:00', '12:20', '15:10']
+    shocks:
+      - {start: '11:55', end: '12:10', inference_outage: true}
+  - name: feed_outage
+    decisions: ['12:05', '12:20', '15:10']
+    shocks:
+      - {start: '11:55', end: '12:10', missing_data: true}
+  - name: trading_halt
+    decisions: ['12:00', '12:20', '15:10']
+    shocks:
+      - {start: '11:55', end: '12:10', halted: true}
