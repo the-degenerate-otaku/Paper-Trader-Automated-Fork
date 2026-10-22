@@ -1,0 +1,6 @@
+journal_limit: 10000
+separation_minutes: 30
+future_minutes: 30
+real_days: [2026-10-22]
+matched_count_resamples: 1000
+random_seed: 7

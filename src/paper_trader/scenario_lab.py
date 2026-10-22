@@ -143,7 +143,11 @@ def snapshot(settings: Settings, probe: Probe) -> FeatureSnapshot | None:
 
 
 def simulate(
-    settings: Settings, probe: Probe, features: FeatureSnapshot, direction: str
+    settings: Settings,
+    probe: Probe,
+    features: FeatureSnapshot,
+    direction: str,
+    decision_at: datetime | None = None,
 ) -> dict[str, Any]:
     config = settings.model_copy(deep=True)
     config.execution.slippage_bps *= probe.movement.slippage_factor
@@ -151,7 +155,8 @@ def simulate(
     book = Portfolio(config.account.starting_capital_inr)
     exchange = PaperExchange(config, calendar, book)
     atr = Decimal(str(features.values["atr"]))
-    price = probe.history[-1].close
+    price = Decimal(str(features.values["ltp"]))
+    symbol = features.symbol
     long = direction == "LONG"
     sign = Decimal(1 if long else -1)
     context = RiskContext(
@@ -172,11 +177,11 @@ def simulate(
         }
     distance = atr * config.risk.atr_stop_multiple
     request = Order(
-        symbol="LAB",
+        symbol=symbol,
         side="BUY" if long else "SELL",
         product="MIS",
         quantity=size,
-        signal_at=features.at,
+        signal_at=decision_at or features.at,
         stop_price=price - sign * distance,
         target_price=price + sign * distance * config.risk.reward_risk_ratio,
     )
@@ -192,7 +197,9 @@ def simulate(
         }
     hold = timedelta(minutes=config.auto_paper.max_hold_minutes)
     for bar in probe.future:
-        position = book.positions.get(("LAB", "MIS"))
+        if decision_at is not None and bar.opened_at < decision_at:
+            continue
+        position = book.positions.get((symbol, "MIS"))
         if position is not None and bar.opened_at >= position.opened_at + hold:
             exchange.cancel(request.id)
             if not any(
@@ -201,7 +208,7 @@ def simulate(
             ):
                 exchange.submit(
                     Order(
-                        symbol="LAB",
+                        symbol=symbol,
                         side="SELL" if position.quantity > 0 else "BUY",
                         product="MIS",
                         quantity=abs(position.quantity),

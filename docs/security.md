@@ -1,5 +1,13 @@
 # Security and smoke verification
 
+## Paired Laya entry ablation - 2026-10-22
+
+Added an offline four-arm entry-policy comparison with identical execution settings, a valid-response subset and seeded trade-count controls. Sampling precedes future profitability and model availability checks. Explicit entry/flat contexts, non-overlapping symbol windows, closed recorded inputs, complete outcome windows and paired unresolved exclusions prevent obvious context/lookahead errors. Historical response completion timestamps delay every arm equally. Real symbols and recorded reference prices are supported by the isolated simulator. The underlying live trading engine and active profile are unchanged.
+
+The original journal opens read-only; no application orders, inference requests, migrations, weight training or profile activation occur. Output and synthetic-cache paths are restricted to ignored work storage. Recorded financial results remain private. Source/profile/data hashes and coverage exclusions are retained. Legacy contexts are excluded rather than guessed. Latest revised outcome candles, original scheduler selection, one real session and previously inspected synthetic paths limit the inference; no profitability or statistical-significance claim is made.
+
+Validation: 211 Python regression tests passed with the inherited Starlette/httpx deprecation warning. Seven new tests cover deterministic rule parity, response failure, agreement filtering, response-time execution, outcome-independent sampling, paired unresolved exclusions and seeded matched-count controls. Ruff check/format, strict mypy and Bandit passed; npm audit and pip-audit found no known published dependency vulnerabilities. The local editable project is covered by source checks rather than PyPI auditing. Thirteen local HTTP security checks passed. Repository/history privacy checks found no blocking findings. No frontend, Linux runtime or newly trained model was tested in this phase. See laya-ablation.md for usage and limitations.
+
 ## Accounting corrections and isolated scenario lab - 2026-10-22
 
 Validated a read-only account audit and fixed protective partial-fill brokerage state and completed-position loss-streak accounting. Protective state survives serialization, reconstructs from legacy partial fills and resets its identity by session date. Restoration repairs the derived streak without rewriting recorded fills, charges, cash or realized P&L. Regression coverage checks exact allocation, cash reconciliation, cap continuity, legacy state, aggregate loss semantics and audit immutability.
