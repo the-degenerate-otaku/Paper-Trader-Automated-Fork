@@ -1,0 +1,9 @@
+day: 2026-10-22
+signal_times: ['14:00', '14:30']
+history_days: 10
+future_minutes: 30
+new_hold_minutes: 25
+decision_delay_seconds: 30
+inference_timeout_ms: 30000
+matched_count_resamples: 1000
+random_seed: 7

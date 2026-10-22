@@ -4,6 +4,8 @@ Local Nifty 50 paper portfolio and buy/sell terminal for Windows and Linux. Virt
 
 ## Status
 
+A [paired signal-timeframe experiment](docs/timeframe-comparison.md) recalculates one-minute/five-minute inputs and compares existing exits with a 25-minute time exit. It uses actual local Laya responses, common one-minute execution and isolated portfolios. Active trading settings remain unchanged.
+
 An offline [Laya-versus-EMA ablation](docs/laya-ablation.md) compares identical entry opportunities, execution rules, valid-response subsets and matched trade-count controls. Initial evidence does not establish added value for the configured Laya entry policy. Active settings and model weights are unchanged.
 
 Accounting corrections and an isolated Laya scenario lab are available. Protective partial exits preserve brokerage caps; completed positions determine loss streaks. The initial synthetic comparison and calibration experiment do not establish a profitable strategy and are not promoted into the active profile. See [scenario lab](docs/scenario-lab.md).
